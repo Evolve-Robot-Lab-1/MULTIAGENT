@@ -171,15 +171,26 @@
                             const data = await response.json();
                             
                             if (data.success && data.pages && data.pages.length > 0) {
+                                // Check if overlay is available for native viewer toggle
+                                let toggleButton = '';
+                                if (window.apiCompat && window.apiCompat.isOverlayAvailable()) {
+                                    toggleButton = `
+                                        <button id="viewer-mode-toggle" onclick="toggleViewerMode()" title="Toggle Viewer Mode">
+                                            <span id="viewer-mode-text">HTML View</span>
+                                        </button>
+                                    `;
+                                    console.log('[DocAI] Overlay available, showing toggle button');
+                                } else {
+                                    console.log('[DocAI] Overlay not available, hiding toggle button');
+                                }
+                                
                                 // Display document with proper structure
                                 chatContainer.innerHTML = `
                                     <div class="word-viewer">
                                         <div class="word-toolbar">
                                             <div class="word-toolbar-group">
                                                 <span>${fileName}</span>
-                                                <button id="viewer-mode-toggle" onclick="toggleViewerMode()" title="Toggle Viewer Mode">
-                                                    <span id="viewer-mode-text">HTML View</span>
-                                                </button>
+                                                ${toggleButton}
                                                 <button class="edit-button" onclick="enableEditMode('${fileName}')" title="Edit Document">
                                                     <i class="fas fa-edit"></i> Edit
                                                 </button>
@@ -848,6 +859,7 @@
         debugTrace('Pre-app.js setup complete');
     </script>
     
+    <script src="static/js/api-compatibility.js?v=1.0"></script>
     <script src="static/js/app.js?v=1.9"></script>
     <script src="static/js/enhanced-viewer.js?v=1.9"></script>
     <script src="static/js/viewer-mode.js?v=1.9"></script>

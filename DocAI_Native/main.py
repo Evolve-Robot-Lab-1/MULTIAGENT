@@ -213,14 +213,15 @@ class ApplicationContext:
         """Create and configure the main window"""
         self.logger.info("Creating application window...")
         
-        # Use FixedAPI class instance for PyWebView compatibility
-        self.logger.info("Using FixedAPI class instance for PyWebView")
-        self.native_api = FixedAPI()
+        # Use NativeAPIBridge for unified API access
+        self.logger.info("Using NativeAPIBridge for PyWebView")
+        from native_api_bridge import NativeAPIBridge
+        self.native_api = NativeAPIBridge()
         self.logger.info(f"Native API type: {type(self.native_api)}")
         self.logger.info(f"Native API class: {self.native_api.__class__.__name__}")
         
         # Verify the methods are callable
-        for method_name in ['pickFile', 'checkLibreOffice', 'embedDocument']:
+        for method_name in ['pickFile', 'checkLibreOffice', 'embedDocument', 'getFeatures']:
             if hasattr(self.native_api, method_name):
                 method = getattr(self.native_api, method_name)
                 self.logger.info(f"✓ {method_name}: {type(method)}")

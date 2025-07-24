@@ -28,13 +28,21 @@ class OverlayManager {
      */
     async initialize(containerId, documentsDir) {
         try {
+            // Ensure API compatibility layer is ready
+            await window.apiCompat.initialize();
+            
+            if (!window.apiCompat.isOverlayAvailable()) {
+                console.warn('Overlay API not available');
+                return false;
+            }
+            
             this.container = document.getElementById(containerId);
             if (!this.container) {
                 throw new Error(`Container ${containerId} not found`);
             }
             
-            // Initialize overlay API
-            const result = await window.pywebview.api.overlay.initialize(documentsDir);
+            // Use normalized API
+            const result = await window.nativeAPI.overlay.initialize(documentsDir);
             
             if (result.success) {
                 this.initialized = true;
@@ -72,7 +80,7 @@ class OverlayManager {
             this.showLoading();
             
             // Load document with overlay
-            const result = await window.pywebview.api.overlay.load_document_overlay(
+            const result = await window.nativeAPI.overlay.loadDocument(
                 filename,
                 bounds
             );
@@ -110,7 +118,7 @@ class OverlayManager {
         }
         
         try {
-            const result = await window.pywebview.api.overlay.stop_overlay();
+            const result = await window.nativeAPI.overlay.stop();
             
             if (result.success) {
                 this.overlayActive = false;
@@ -211,7 +219,7 @@ class OverlayManager {
             this.lastBounds = bounds;
             
             try {
-                await window.pywebview.api.overlay.update_container_bounds(bounds);
+                await window.nativeAPI.overlay.updateBounds(bounds);
             } catch (error) {
                 console.error('Failed to update container bounds:', error);
             }
@@ -246,7 +254,7 @@ class OverlayManager {
                 
                 if (this.overlayActive) {
                     try {
-                        await window.pywebview.api.overlay.update_window_position(
+                        await window.nativeAPI.overlay.updateWindowPosition(
                             lastX,
                             lastY
                         );
@@ -293,7 +301,7 @@ class OverlayManager {
      */
     async configureSyncEngine(settings) {
         try {
-            const result = await window.pywebview.api.overlay.configure_sync_engine(settings);
+            const result = await window.nativeAPI.overlay.configureSyncEngine(settings);
             
             if (!result.success) {
                 throw new Error(result.error || 'Failed to configure sync engine');
@@ -310,7 +318,7 @@ class OverlayManager {
      */
     async getStatus() {
         try {
-            return await window.pywebview.api.overlay.get_overlay_status();
+            return await window.nativeAPI.overlay.getStatus();
         } catch (error) {
             console.error('Failed to get overlay status:', error);
             return null;
@@ -322,7 +330,7 @@ class OverlayManager {
      */
     async getSyncMetrics() {
         try {
-            return await window.pywebview.api.overlay.get_sync_metrics();
+            return await window.nativeAPI.overlay.getSyncMetrics();
         } catch (error) {
             console.error('Failed to get sync metrics:', error);
             return null;

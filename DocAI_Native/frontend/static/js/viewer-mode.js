@@ -450,12 +450,30 @@ function toggleViewerMode() {
 
 // Initialize on page load
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         viewerManager = new ViewerModeManager();
         window.viewerManager = viewerManager; // Make it globally accessible
+        
+        // Initialize overlay manager if available
+        if (window.overlayManager) {
+            try {
+                const documentsDir = '/home/user/Documents'; // Or get from config
+                await window.overlayManager.initialize('chat-container', documentsDir);
+                console.log('[ViewerMode] Overlay manager initialized');
+            } catch (error) {
+                console.error('[ViewerMode] Failed to initialize overlay manager:', error);
+            }
+        }
     });
 } else {
     // DOM already loaded
     viewerManager = new ViewerModeManager();
     window.viewerManager = viewerManager;
+    
+    // Initialize overlay manager if available
+    if (window.overlayManager) {
+        window.overlayManager.initialize('chat-container', '/home/user/Documents')
+            .then(() => console.log('[ViewerMode] Overlay manager initialized'))
+            .catch(error => console.error('[ViewerMode] Failed to initialize overlay manager:', error));
+    }
 }
