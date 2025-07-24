@@ -17,6 +17,13 @@ ENV/
 turboo_linux_new/
 docai_env_new/
 
+# Environment files - NEVER commit API keys!
+.env
+.env.*
+*.env
+.environment
+config.ini
+
 # IDE
 .vscode/
 .idea/
