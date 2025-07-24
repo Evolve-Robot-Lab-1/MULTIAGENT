@@ -1,0 +1,116 @@
+{
+  "module": "test_01_xdotool_reparent",
+  "start_time": "2025-07-24T12:09:50.132935",
+  "status": "failed",
+  "attempts": [
+    {
+      "vcl_plugin": "gtk3",
+      "attempt": 1,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:09:54.320697"
+    },
+    {
+      "vcl_plugin": "gtk3",
+      "attempt": 2,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:09:58.493820"
+    },
+    {
+      "vcl_plugin": "gtk3",
+      "attempt": 3,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:10:04.649761"
+    },
+    {
+      "vcl_plugin": "gtk4",
+      "attempt": 1,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:10:07.793110"
+    },
+    {
+      "vcl_plugin": "gtk4",
+      "attempt": 2,
+      "result": {
+        "success": false,
+        "error": "Failed to reparent window"
+      },
+      "timestamp": "2025-07-24T12:10:14.118914"
+    },
+    {
+      "vcl_plugin": "gtk4",
+      "attempt": 3,
+      "result": {
+        "success": false,
+        "error": "Failed to reparent window"
+      },
+      "timestamp": "2025-07-24T12:10:22.361552"
+    },
+    {
+      "vcl_plugin": "gen",
+      "attempt": 1,
+      "result": {
+        "success": false,
+        "error": "Failed to reparent window"
+      },
+      "timestamp": "2025-07-24T12:10:27.629807"
+    },
+    {
+      "vcl_plugin": "gen",
+      "attempt": 2,
+      "result": {
+        "success": false,
+        "error": "Failed to reparent window"
+      },
+      "timestamp": "2025-07-24T12:10:33.918680"
+    },
+    {
+      "vcl_plugin": "gen",
+      "attempt": 3,
+      "result": {
+        "success": false,
+        "error": "Failed to reparent window"
+      },
+      "timestamp": "2025-07-24T12:10:42.180861"
+    },
+    {
+      "vcl_plugin": "qt5",
+      "attempt": 1,
+      "result": {
+        "success": false,
+        "error": "Failed to reparent window"
+      },
+      "timestamp": "2025-07-24T12:10:47.432553"
+    },
+    {
+      "vcl_plugin": "qt5",
+      "attempt": 2,
+      "result": {
+        "success": false,
+        "error": "Failed to reparent window"
+      },
+      "timestamp": "2025-07-24T12:10:53.691013"
+    },
+    {
+      "vcl_plugin": "qt5",
+      "attempt": 3,
+      "result": {
+        "success": false,
+        "error": "Failed to reparent window"
+      },
+      "timestamp": "2025-07-24T12:11:01.936018"
+    }
+  ],
+  "end_time": "2025-07-24T12:11:01.939108"
+}

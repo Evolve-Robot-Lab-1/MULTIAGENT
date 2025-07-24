@@ -1,0 +1,31 @@
+# Requirements for the OLD main_copy.py system
+# These are the versions that were working before
+
+# Core dependencies
+groq==0.4.2
+pydantic==2.5.0
+pydantic-settings==2.0.3
+pydantic-core==2.14.1
+
+# Langchain and related
+langchain==0.1.0
+langchain-groq==0.0.1
+langchain-community==0.0.10
+
+# Other core dependencies
+requests==2.31.0
+urllib3==2.1.0
+protobuf==4.25.0
+faiss-cpu==1.7.4
+sentence-transformers==2.2.2
+
+# PocketGroq (older version with chain_of_thought module)
+pocketgroq==0.4.9
+
+# Additional dependencies
+python-docx==1.1.0
+PyPDF2==3.0.1
+flask==3.0.0
+flask-cors==4.0.0
+numpy<2.0.0
+packaging==23.2

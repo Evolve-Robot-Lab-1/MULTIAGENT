@@ -1,0 +1,40 @@
+# Vagrant files
+.vagrant/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Virtual environments
+turboo_linux_new/
+docai_env_new/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+uploads/
+processed/
+temp/
+tmp/
+*.pkl
+*.db
+*.sqlite
+
+# Vagrant logs
+ubuntu-*-console.log

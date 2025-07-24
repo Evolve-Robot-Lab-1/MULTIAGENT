@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        button { padding: 10px; margin: 5px; }
+        pre { background: #f0f0f0; padding: 10px; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>PyWebView API Debug Test</h1>
+    
+    <button onclick="testAPI()">Test API Structure</button>
+    <button onclick="testPickFile()">Test Pick File</button>
+    <button onclick="testDirectMethods()">Test Direct Methods</button>
+    
+    <div id="output"></div>
+    
+    <script>
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            output.appendChild(div);
+        }
+        
+        function testAPI() {
+            log('Testing API structure...');
+            
+            try {
+                // Check pywebview
+                log('typeof pywebview: ' + typeof pywebview);
+                
+                if (typeof pywebview !== 'undefined') {
+                    log('pywebview exists', 'success');
+                    
+                    // Check api
+                    log('typeof pywebview.api: ' + typeof pywebview.api);
+                    
+                    if (typeof pywebview.api !== 'undefined') {
+                        log('pywebview.api exists', 'success');
+                        
+                        // List all properties
+                        log('API properties:');
+                        for (let key in pywebview.api) {
+                            const type = typeof pywebview.api[key];
+                            log(`  ${key}: ${type}`);
+                            
+                            // If it's a function, try to get its string representation
+                            if (type === 'function') {
+                                try {
+                                    log(`    Function: ${pywebview.api[key].toString().substring(0, 50)}...`);
+                                } catch (e) {
+                                    log(`    (Cannot stringify function)`);
+                                }
+                            }
+                        }
+                        
+                        // Try to list methods using Object methods
+                        log('<br>Using Object.getOwnPropertyNames:');
+                        const props = Object.getOwnPropertyNames(pywebview.api);
+                        log('Properties: ' + props.join(', '));
+                        
+                        // Check prototype
+                        log('<br>Prototype check:');
+                        log('pywebview.api.constructor.name: ' + pywebview.api.constructor.name);
+                        
+                    } else {
+                        log('pywebview.api is undefined', 'error');
+                    }
+                } else {
+                    log('pywebview is undefined', 'error');
+                }
+                
+            } catch (e) {
+                log('Error: ' + e.message, 'error');
+            }
+        }
+        
+        async function testPickFile() {
+            log('<br>Testing pickFile...');
+            
+            try {
+                if (typeof pywebview?.api?.pickFile === 'function') {
+                    log('pickFile is a function', 'success');
+                    const result = await pywebview.api.pickFile();
+                    log('Result: ' + (result || 'No file selected'));
+                } else {
+                    log('pickFile is not a function', 'error');
+                }
+            } catch (e) {
+                log('Error calling pickFile: ' + e.message, 'error');
+            }
+        }
+        
+        async function testDirectMethods() {
+            log('<br>Testing direct method calls...');
+            
+            const methods = ['pickFile', 'checkLibreOffice', 'embedDocument', 'getAvailableMethods'];
+            
+            for (const method of methods) {
+                try {
+                    const hasMethod = typeof pywebview?.api?.[method] === 'function';
+                    log(`${method}: ${hasMethod ? 'EXISTS' : 'NOT FOUND'}`);
+                    
+                    if (hasMethod && method === 'getAvailableMethods') {
+                        // Try calling it
+                        try {
+                            const result = await pywebview.api[method]();
+                            log(`  Result: ${JSON.stringify(result)}`);
+                        } catch (e) {
+                            log(`  Error calling: ${e.message}`, 'error');
+                        }
+                    }
+                } catch (e) {
+                    log(`Error checking ${method}: ${e.message}`, 'error');
+                }
+            }
+        }
+        
+        // Run basic test on load
+        window.addEventListener('load', () => {
+            setTimeout(testAPI, 1000);
+        });
+    </script>
+</body>
+</html>

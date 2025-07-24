@@ -1,0 +1,2332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>துர்கா AI - Native</title>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+Thambi+2:wght@400;500&family=Catamaran:wght@400;500&family=Mukta+Malar:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="static/css/stylenew.css?v=1.9">
+    <link rel="stylesheet" href="static/css/overlay.css?v=1.0">
+    <link rel="icon" type="image/png" href="static/assets/Durga.png">
+    <style>
+        /* Ensure file container has position relative for drag overlay */
+        .file-container {
+            position: relative;
+        }
+        
+        /* Essential styles for document viewer */
+        .word-viewer {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+        }
+        
+        /* Ensure file viewer is also visible */
+        .file-viewer {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+        }
+        
+        .file-viewer-header {
+            padding: 10px 20px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .file-viewer-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+    </style>
+    <script>
+        // CRITICAL: Define localStorage safety wrapper BEFORE any other scripts load
+        console.log('[EARLY INIT] Setting up localStorage safety wrapper');
+        
+        // Safe localStorage wrapper for PyWebView
+        const safeLocalStorage = {
+            getItem: function(key) {
+                try {
+                    return localStorage && localStorage.getItem ? localStorage.getItem(key) : null;
+                } catch (e) {
+                    console.warn('[WARNING] localStorage not available:', e);
+                    return null;
+                }
+            },
+            setItem: function(key, value) {
+                try {
+                    if (localStorage && localStorage.setItem) {
+                        localStorage.setItem(key, value);
+                    }
+                } catch (e) {
+                    console.warn('[WARNING] localStorage not available:', e);
+                }
+            }
+        };
+        
+        // Override localStorage if it's not available
+        try {
+            localStorage.getItem('test');
+        } catch (e) {
+            console.log('[EARLY INIT] localStorage not available, using safe wrapper');
+            window.localStorage = safeLocalStorage;
+        }
+        
+        console.log('[EARLY INIT] localStorage wrapper ready');
+        
+        // ===== CRITICAL: UNIFIED GLOBAL NAMESPACE FOR PYWEBVIEW COMPATIBILITY =====
+        // All functions must be defined here to ensure availability in PyWebView environment
+        console.log('[EARLY INIT] Creating global DocAI namespace');
+        
+        window.DocAI = {
+            // Configuration
+            config: {
+                serverUrl: 'http://127.0.0.1:8090',
+                isNativeMode: typeof window.pywebview !== 'undefined',
+                initialized: false,
+                language: 'tamil'
+            },
+            
+            // File management state
+            fileList: [],
+            documentContext: {
+                currentDocument: null,
+                isEditing: false,
+                selectedContent: null
+            },
+            
+            // Helper functions
+            getServerUrl: function() {
+                // PyWebView loads with file:// protocol, need hardcoded server URL
+                if (window.location.protocol === 'file:') {
+                    return this.config.serverUrl;
+                }
+                return window.location.origin;
+            },
+            
+            getFileIcon: function(ext) {
+                const icons = {
+                    'js': '🟨', 'html': '🌐', 'css': '🎨', 'py': '🐍',
+                    'json': '📋', 'md': '📝', 'txt': '📄', 'pdf': '📕',
+                    'doc': '📘', 'docx': '📘', 'jpg': '🖼️', 'jpeg': '🖼️',
+                    'png': '🖼️', 'gif': '🖼️', 'zip': '📦', 'csv': '📊',
+                    'xml': '📰', 'odt': '📘'
+                };
+                return icons[ext] || '📄';
+            },
+            
+            getFileExtension: function(fileName) {
+                return fileName.split('.').pop().toLowerCase();
+            },
+            
+            // Core document display function
+            displayDocumentFromBackend: async function(fileName) {
+                console.log('[DocAI] displayDocumentFromBackend called:', fileName);
+                if (window.showDebug) window.showDebug('[DocAI] Loading document: ' + fileName);
+                
+                const chatContainer = document.querySelector('.chat-container');
+                if (!chatContainer) {
+                    console.error('[DocAI] Chat container not found');
+                    return;
+                }
+                
+                // Show loading state
+                chatContainer.innerHTML = `
+                    <div class="file-viewer">
+                        <div class="file-viewer-header">
+                            <h3>📄 ${fileName}</h3>
+                            <button onclick="closeFileViewer()" class="close-btn">✕</button>
+                        </div>
+                        <div class="file-viewer-content" style="text-align: center; padding: 50px;">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 48px; color: #666;"></i>
+                            <p>Loading document...</p>
+                        </div>
+                    </div>
+                `;
+                
+                try {
+                    // Use getServerUrl for proper URL in PyWebView
+                    const baseUrl = this.getServerUrl();
+                    const url = `${baseUrl}/view_document/${encodeURIComponent(fileName)}`;
+                    
+                    console.log('[DocAI] Fetching from:', url);
+                    if (window.showDebug) window.showDebug('[DocAI] URL: ' + url);
+                    
+                    const response = await fetch(url);
+                    console.log('[DocAI] Response status:', response.status);
+                    
+                    if (response.ok) {
+                        const contentType = response.headers.get('content-type');
+                        
+                        if (contentType && contentType.includes('application/json')) {
+                            const data = await response.json();
+                            
+                            if (data.success && data.pages && data.pages.length > 0) {
+                                // Display document with proper structure
+                                chatContainer.innerHTML = `
+                                    <div class="word-viewer">
+                                        <div class="word-toolbar">
+                                            <div class="word-toolbar-group">
+                                                <span>${fileName}</span>
+                                                <button id="viewer-mode-toggle" onclick="toggleViewerMode()" title="Toggle Viewer Mode">
+                                                    <span id="viewer-mode-text">HTML View</span>
+                                                </button>
+                                                <button class="edit-button" onclick="enableEditMode('${fileName}')" title="Edit Document">
+                                                    <i class="fas fa-edit"></i> Edit
+                                                </button>
+                                                <div class="close-document" onclick="closeFileViewer()" title="Close">
+                                                    <i class="fas fa-times"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="word-viewer-container">
+                                            <div class="word-content">
+                                                ${data.pages.map(page => `<div class="word-page">${page}</div>`).join('')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                                
+                                // Track current document in viewer manager
+                                if (window.viewerManager) {
+                                    window.viewerManager.currentDocument = fileName;
+                                    window.viewerManager.updateButtonText();
+                                }
+                                
+                                if (window.showDebug) window.showDebug('[DocAI] Document loaded successfully');
+                            } else {
+                                throw new Error(data.error || 'Failed to load document');
+                            }
+                        } else {
+                            // Handle HTML response
+                            const html = await response.text();
+                            chatContainer.innerHTML = `
+                                <div class="file-viewer">
+                                    <div class="file-viewer-header">
+                                        <h3>📄 ${fileName}</h3>
+                                        <button onclick="closeFileViewer()" class="close-btn">✕</button>
+                                    </div>
+                                    <div class="file-viewer-content">${html}</div>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        throw new Error(`Failed to load: ${response.status} ${response.statusText}`);
+                    }
+                } catch (error) {
+                    console.error('[DocAI] Error loading document:', error);
+                    if (window.showDebug) window.showDebug('[DocAI] ERROR: ' + error.message);
+                    
+                    chatContainer.innerHTML = `
+                        <div class="file-viewer">
+                            <div class="file-viewer-header">
+                                <h3>📄 ${fileName}</h3>
+                                <button onclick="closeFileViewer()" class="close-btn">✕</button>
+                            </div>
+                            <div class="file-viewer-content" style="text-align: center; padding: 50px; color: #e74c3c;">
+                                <i class="fas fa-exclamation-circle" style="font-size: 48px;"></i>
+                                <p>Error loading document: ${error.message}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+            
+            // File click handler
+            handleFileClick: function(fileName, content) {
+                console.log('[DocAI] handleFileClick:', fileName);
+                if (window.showDebug) window.showDebug('[DocAI] File clicked: ' + fileName);
+                
+                // Always use backend for document files
+                const fileExt = this.getFileExtension(fileName);
+                if (['doc', 'docx', 'pdf', 'odt'].includes(fileExt) || this.config.isNativeMode) {
+                    this.displayDocumentFromBackend(fileName);
+                } else if (content) {
+                    // Display local content for text files
+                    this.displayFileInCenter(fileName, content);
+                } else {
+                    // No content, load from backend
+                    this.displayDocumentFromBackend(fileName);
+                }
+            },
+            
+            // Display local file content
+            displayFileInCenter: function(fileName, content) {
+                const chatContainer = document.querySelector('.chat-container');
+                if (chatContainer) {
+                    chatContainer.innerHTML = `
+                        <div class="file-viewer">
+                            <div class="file-viewer-header">
+                                <h3>📄 ${fileName}</h3>
+                                <button onclick="closeFileViewer()" class="close-btn">✕</button>
+                            </div>
+                            <div class="file-viewer-content">
+                                <pre>${content || 'File content will be loaded here...'}</pre>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+            
+            // Add file to container
+            addFileToContainer: function(fileName, fileExt, fileContent = null) {
+                console.log('[DocAI] addFileToContainer:', fileName);
+                const filebox = document.getElementById('filebox');
+                if (!filebox) return;
+                
+                // Clear placeholder message
+                const placeholder = filebox.querySelector('.file-message');
+                if (placeholder && (placeholder.textContent.includes('Files will appear here') || 
+                    placeholder.textContent.includes('No files uploaded yet'))) {
+                    placeholder.remove();
+                }
+                
+                // Add to file list
+                this.fileList.push({
+                    name: fileName,
+                    ext: fileExt,
+                    content: fileContent,
+                    type: 'file'
+                });
+                
+                // Create file item element
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <span class="expand-icon">&gt;</span>
+                    <span class="file-icon">${this.getFileIcon(fileExt)}</span>
+                    <span class="file-name">${fileName}</span>
+                    <span class="file-actions">
+                        <button class="file-delete-btn" title="Delete file" onclick="event.stopPropagation(); deleteFile('${fileName}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </span>
+                `;
+                
+                // Add click handler
+                fileItem.addEventListener('click', (e) => {
+                    if (!e.target.closest('.file-actions')) {
+                        console.log('[DocAI] File item clicked');
+                        window.DocAI.handleFileClick(fileName, fileContent);
+                    }
+                });
+                
+                filebox.appendChild(fileItem);
+            },
+            
+            // Refresh files from server
+            refreshFiles: async function() {
+                console.log('[DocAI] refreshFiles called');
+                if (window.showDebug) window.showDebug('[DocAI] Refreshing files...');
+                
+                const filebox = document.getElementById('filebox');
+                if (!filebox) return;
+                
+                filebox.innerHTML = '<div class="file-message"><i class="fas fa-spinner fa-spin"></i> Loading files...</div>';
+                
+                try {
+                    const baseUrl = this.getServerUrl();
+                    const response = await fetch(`${baseUrl}/api/v1/files`);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        
+                        filebox.innerHTML = '';
+                        this.fileList = [];
+                        
+                        if (data.files && data.files.length > 0) {
+                            data.files.forEach(file => {
+                                const fileExt = file.extension.replace('.', '');
+                                this.addFileToContainer(file.filename, fileExt, null);
+                            });
+                            if (window.showDebug) window.showDebug(`[DocAI] Loaded ${data.files.length} files`);
+                        } else {
+                            filebox.innerHTML = '<div class="file-message">📁 No files uploaded yet</div>';
+                        }
+                    } else {
+                        throw new Error('Failed to fetch files');
+                    }
+                } catch (error) {
+                    console.error('[DocAI] Error loading files:', error);
+                    if (window.showDebug) window.showDebug('[DocAI] ERROR: ' + error.message);
+                    filebox.innerHTML = '<div class="file-message">📁 Error loading files. Click refresh to try again.</div>';
+                }
+            },
+            
+            // Initialize application
+            init: function() {
+                if (this.config.initialized) return;
+                this.config.initialized = true;
+                
+                console.log('[DocAI] Initializing application');
+                console.log('[DocAI] Native mode:', this.config.isNativeMode);
+                console.log('[DocAI] Server URL:', this.getServerUrl());
+                
+                if (window.showDebug) {
+                    window.showDebug('[DocAI] Application initialized');
+                    window.showDebug('[DocAI] Mode: ' + (this.config.isNativeMode ? 'Native' : 'Web'));
+                }
+                
+                // Load files after a short delay
+                setTimeout(() => {
+                    console.log('[DocAI] Loading initial files');
+                    this.refreshFiles();
+                }, 500);
+            }
+        };
+        
+        // Create global function aliases for backward compatibility
+        window.displayDocumentFromBackend = function(fileName) {
+            return window.DocAI.displayDocumentFromBackend(fileName);
+        };
+        window.handleFileClick = function(fileName, content) {
+            return window.DocAI.handleFileClick(fileName, content);
+        };
+        window.addFileToContainer = function(fileName, fileExt, fileContent) {
+            return window.DocAI.addFileToContainer(fileName, fileExt, fileContent);
+        };
+        window.refreshFiles = function() {
+            return window.DocAI.refreshFiles();
+        };
+        window.closeFileViewer = function() {
+            const chatContainer = document.querySelector('.chat-container');
+            if (chatContainer) {
+                chatContainer.innerHTML = '<!-- Center content will go here -->';
+            }
+        };
+        
+        console.log('[EARLY INIT] Global DocAI namespace created with all functions');
+    </script>
+</head>
+<body>
+    <header>
+        <div class="branding">
+            <img src="static/assets/Durga.png" alt="AI Logo" class="logo">
+            <h1>துர்கா AI - Native</h1>
+        </div>
+        <div class="menu-container">
+            <div class="dropdown">
+                <button class="menu-button">Files</button>
+                <div class="dropdown-content">
+                    <a href="#" class="dropdown-item" onclick="handleOpenFile()">Open File</a>
+                    <a href="#" class="dropdown-item" onclick="handleNativeOpenMultiple()">Open Multiple Files</a>
+                    <a href="#" class="dropdown-item" onclick="handleOpenFolder()">Open Folder</a>
+                    <a href="#" class="dropdown-item" onclick="handleSaveAs()">Save As</a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <button class="menu-button">Agents <span id="agent-status-indicator"></span></button>
+                <div class="dropdown-content">
+                    <a href="#" class="dropdown-item" onclick="handleDocumentAgent()">Document Agent <span id="docai-agent-status">✗</span></a>
+                    <a href="#" class="dropdown-item" onclick="handleBrowserAgent()">Browser Agent <span id="browser-agent-status">✗</span></a>
+                    <a href="#" class="dropdown-item" onclick="handleSocialAgent()">Social Agent <span id="social-agent-status">✗</span></a>
+                    <a href="#" class="dropdown-item" onclick="handleWebAgent()">Web Agent <span id="web-agent-status">✗</span></a>
+                    <a href="#" class="dropdown-item" onclick="handleServiceAgent()">Service Agent <span id="service-agent-status">✗</span></a>
+                    <a href="#" class="dropdown-item" onclick="handleTwitterAgent()">Twitter Agent <span id="twitter-agent-status">✗</span></a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <button class="menu-button">Language</button>
+                <div class="dropdown-content">
+                    <a href="#" class="dropdown-item" onclick="changeLanguage('tamil')">தமிழ்</a>
+                    <a href="#" class="dropdown-item" onclick="changeLanguage('english')">English</a>
+                </div>
+            </div>
+        </div>
+    </header>
+    <div class="main-container">
+        <!-- Left File Container - Same structure as chatbot -->
+        <div class="left-section file-container">
+            <div class="file-search-container">
+                <input type="text" id="fileSearchInput" class="file-search" placeholder="Search files..." onkeyup="searchFiles()">
+            </div>
+            <div id="filebox">
+                <!-- File list will appear here -->
+                <div class="file-message">📁 Files will appear here</div>
+            </div>
+            <div class="button-container">
+                <button id="refreshFilesBtn" class="clear-chat-button">🔄 Refresh</button>
+            </div>
+            <div class="footer-like">
+            
+            </div>
+            <style>
+                .file-search-container {
+                    padding: 10px;
+                    border-bottom: 1px solid #eee;
+                }
+                .file-search {
+                    width: 100%;
+                    padding: 8px 12px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    outline: none;
+                    transition: border-color 0.2s;
+                }
+                .file-search:focus {
+                    border-color: #2196F3;
+                }
+                .file-item.hidden {
+                    display: none;
+                }
+            </style>
+        </div>
+        
+        <div class="chat-container">
+            <!-- Center content will go here -->
+        </div>
+        <div class="left-section">
+            <div id="chatbox">
+                <!-- Placeholder for chat messages -->
+            </div>
+            <div class="button-container">
+                <button id="clearChatBtn" class="clear-chat-button">Clear Chat</button>
+            </div>
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <input type="text" id="userInput" class="chat-input" placeholder="உங்கள் கேள்வியை உள்ளிடவும்..." autofocus>
+                    <button id="micBtn" class="mic-button" title="பதிவு செய்ய தட்டவும்">
+                        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle class="mic-border" cx="12" cy="12" r="11" stroke="#333" stroke-width="2" fill="white"/>
+                            <circle class="mic-record-circle" cx="12" cy="12" r="9" fill="#2196F3"/>
+                            <circle class="mic-center" cx="12" cy="12" r="3" fill="#333"/>
+                        </svg>
+                    </button>
+                </div>
+                <button id="sendBtn" class="send-button">அனுப்பவும்</button>
+                <button id="stopBtn" class="stop-button" style="display: none;">
+                    <svg class="stop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="6" y="6" width="12" height="12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="footer-like">
+            
+            </div>
+        </div>
+    </div>  
+    <div id="loading" class="loading-spinner" style="display: none;"></div>
+    
+    <!-- Debug output for native app -->
+    <div id="debug-output" style="position: fixed; bottom: 10px; right: 10px; width: 400px; height: 200px; background: rgba(0,0,0,0.8); color: #0f0; font-family: monospace; font-size: 12px; padding: 10px; overflow-y: auto; border: 1px solid #0f0; z-index: 9999; display: block;">
+        <div style="color: #fff; font-weight: bold; margin-bottom: 5px;">Debug Output (v1.12)</div>
+    </div>
+    
+    <!-- Debug button for testing native API -->
+    <button onclick="testNativeAPI()" style="position: fixed; top: 60px; right: 10px; z-index: 1000; background: #2196F3; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+        Test Native API
+    </button>
+    
+    <!-- Test Document Display -->
+    <button onclick="testDocumentDisplay()" style="position: fixed; top: 140px; right: 10px; z-index: 1000; background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+        Test Doc Display
+    </button>
+    
+    <!-- Debug Panel Toggle -->
+    <button onclick="toggleDebugPanel()" style="position: fixed; top: 100px; right: 10px; z-index: 1000; background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+        Debug Panel
+    </button>
+    
+    <!-- Debug Panel -->
+    <div id="debugPanel" style="position: fixed; bottom: 10px; right: 10px; width: 500px; max-height: 400px; background: #1e1e1e; color: #d4d4d4; border: 2px solid #4CAF50; padding: 10px; overflow-y: auto; display: none; z-index: 10000; font-family: monospace; font-size: 12px; border-radius: 5px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px;">
+            <strong style="color: #4CAF50;">Debug Output</strong>
+            <div>
+                <button onclick="testAPIDebug()" style="background: #2196F3; color: white; border: none; padding: 2px 8px; cursor: pointer; margin-right: 5px;">Test API</button>
+                <button onclick="clearDebugPanel()" style="background: #f44336; color: white; border: none; padding: 2px 8px; cursor: pointer;">Clear</button>
+            </div>
+        </div>
+        <div id="debugContent"></div>
+    </div>
+    
+    <!-- LibreOffice test button -->
+    <button onclick="testLibreOfficeEmbedding()" style="position: fixed; top: 100px; right: 10px; z-index: 1000; background: #17a2b8; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+        Test LibreOffice
+    </button>
+    <!-- Critical: Debug and ensure functions exist for app.js -->
+    <script>
+        console.log('[DEBUG] Pre-app.js script starting');
+        
+        // CRITICAL: Do NOT pre-declare functions as null - this causes typeof to return "object"
+        // Functions will be undefined until properly defined later
+        // Removed null assignments that were causing the issue
+        
+        console.log('[PRE-DECLARE] Functions pre-declared on window object');
+        
+        // Global error handler to catch any script errors
+        window.addEventListener('error', function(event) {
+            console.error('[SCRIPT ERROR]', event.error);
+            console.error('Error at:', event.filename + ':' + event.lineno + ':' + event.colno);
+            console.error('Message:', event.message);
+            if (window.showDebug) {
+                window.showDebug('[SCRIPT ERROR] ' + event.message + ' at line ' + event.lineno);
+            }
+        });
+        
+        // Debug function to trace execution
+        window.debugTrace = function(msg) {
+            console.log(`[TRACE ${new Date().toISOString()}] ${msg}`);
+        };
+        
+        // Visual debug function for native app
+        window.showDebug = function(msg) {
+            const debugDiv = document.getElementById('debug-output');
+            if (debugDiv) {
+                debugDiv.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${msg}</div>`;
+                debugDiv.scrollTop = debugDiv.scrollHeight;
+            }
+        };
+        
+        // Override console.log to also show in debug panel
+        const originalConsoleLog = console.log;
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            // Show [DEBUG] messages in the debug panel
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('[DEBUG]')) {
+                window.showDebug(args.join(' '));
+            }
+        };
+        
+        // Define handleWebOpenFile here, outside of DOMContentLoaded
+        window.handleWebOpenFile = function() {
+            showDebug('[handleWebOpenFile] Function called');
+            // Create file input like the original static2.0
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.txt,.pdf,.doc,.docx,.js,.html,.css,.py,.json,.md,.csv,.xml,.odt';
+            showDebug('[handleWebOpenFile] Input created');
+            
+            // Add to DOM temporarily (PyWebView needs this)
+            input.style.display = 'none';
+            document.body.appendChild(input);
+            
+            // Try multiple event handlers for PyWebView compatibility
+            input.addEventListener('change', function(e) {
+                showDebug('[handleWebOpenFile] change event fired');
+                processFileSelection(e.target.files);
+            });
+            
+            input.addEventListener('input', function(e) {
+                showDebug('[handleWebOpenFile] input event fired');
+                processFileSelection(e.target.files);
+            });
+            
+            // Process file selection
+            function processFileSelection(files) {
+                showDebug('[handleWebOpenFile] Files: ' + (files ? files.length : 0));
+                const file = files && files[0];
+                if (file) {
+                    showDebug('[handleWebOpenFile] File selected: ' + file.name);
+                    const t = translations[localStorage.getItem('language') || 'tamil'];
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(event) {
+                        showDebug('[handleWebOpenFile] File read complete');
+                        const fileContent = event.target.result;
+                        const fileExt = file.name.split('.').pop().toLowerCase();
+                        showDebug('[handleWebOpenFile] File extension: ' + fileExt);
+                        
+                        // Add to file container DIRECTLY like original
+                        // Wait for functions to be available
+                        setTimeout(function() {
+                            showDebug('[handleWebOpenFile] Checking for addFileToContainer...');
+                            showDebug('[handleWebOpenFile] window.addFileToContainer: ' + typeof window.addFileToContainer);
+                            
+                            // Check if filebox exists
+                            const filebox = document.getElementById('filebox');
+                            showDebug('[handleWebOpenFile] Filebox element: ' + (filebox ? 'exists' : 'null'));
+                            
+                            if (window.addFileToContainer) {
+                                showDebug('[handleWebOpenFile] Calling addFileToContainer');
+                                try {
+                                    window.addFileToContainer(file.name, fileExt, fileContent);
+                                    showDebug('[handleWebOpenFile] addFileToContainer called successfully');
+                                } catch (error) {
+                                    showDebug('[handleWebOpenFile] Error: ' + error.message);
+                                }
+                            } else {
+                                showDebug('[handleWebOpenFile] ERROR: addFileToContainer not available');
+                                // Try again after more time
+                                setTimeout(function() {
+                                    if (window.addFileToContainer) {
+                                        showDebug('[handleWebOpenFile] Retry: Calling addFileToContainer');
+                                        try {
+                                            window.addFileToContainer(file.name, fileExt, fileContent);
+                                            showDebug('[handleWebOpenFile] Retry successful');
+                                        } catch (error) {
+                                            showDebug('[handleWebOpenFile] Retry error: ' + error.message);
+                                        }
+                                    } else {
+                                        showDebug('[handleWebOpenFile] ERROR: Still not available');
+                                    }
+                                }, 500);
+                            }
+                        }, 100);
+                        
+                        // Add success message to chat
+                        const message = document.createElement('div');
+                        message.className = 'message bot-message';
+                        message.innerHTML = `<img src="static/assets/Durga.png" alt="AI">${t.openedFile}${file.name}`;
+                        const chatbox = document.getElementById('chatbox');
+                        if (chatbox) {
+                            chatbox.appendChild(message);
+                            chatbox.scrollTop = chatbox.scrollHeight;
+                            showDebug('[handleWebOpenFile] Success message added to chat');
+                        } else {
+                            showDebug('[handleWebOpenFile] ERROR: Chatbox not found');
+                        }
+                    };
+                    
+                    reader.onerror = function(error) {
+                        showDebug('[handleWebOpenFile] FileReader error: ' + error);
+                    };
+                    
+                    // Read file based on type
+                    if (file.type.startsWith('text/') || file.name.endsWith('.js') || file.name.endsWith('.html') || file.name.endsWith('.css') || file.name.endsWith('.json') || file.name.endsWith('.md')) {
+                        showDebug('[handleWebOpenFile] Reading file as text');
+                        reader.readAsText(file);
+                    } else {
+                        showDebug('[handleWebOpenFile] Reading file as data URL');
+                        reader.readAsDataURL(file);
+                    }
+                }
+            }
+            
+            showDebug('[handleWebOpenFile] About to click input');
+            input.click();
+            showDebug('[handleWebOpenFile] Input clicked');
+            
+            // Remove input after a delay
+            setTimeout(function() {
+                document.body.removeChild(input);
+                showDebug('[handleWebOpenFile] Input removed from DOM');
+            }, 1000);
+        };
+        
+        // v1.13 - Fixed for PyWebView
+        window.handleOpenFile = function() {
+            showDebug('v1.13 - handleOpenFile called');
+            window.handleWebOpenFile();
+        };
+        
+        // Process file from path (for native dialog)
+        window.processFilePath = function(filePath) {
+            showDebug('Processing file path: ' + filePath);
+            // Extract filename from path
+            const fileName = filePath.split(/[\\\/]/).pop();
+            const fileExt = fileName.split('.').pop().toLowerCase();
+            
+            showDebug('File name: ' + fileName + ', ext: ' + fileExt);
+            
+            // Add to container with path instead of content
+            setTimeout(function() {
+                if (window.addFileToContainer) {
+                    showDebug('Adding file to container');
+                    window.addFileToContainer(fileName, fileExt, filePath);
+                } else {
+                    showDebug('ERROR: addFileToContainer not available');
+                }
+            }, 100);
+        };
+        
+        // Test function for debugging native API
+        // Test document display function
+        window.testDocumentDisplay = function() {
+            console.log('===== Testing Document Display =====');
+            window.showDebug('===== Testing Document Display =====');
+            
+            // Check if functions exist NOW
+            console.log('handleFileClick exists?', typeof window.handleFileClick === 'function');
+            console.log('displayDocumentFromBackend exists?', typeof window.displayDocumentFromBackend === 'function');
+            
+            window.showDebug('handleFileClick: ' + (typeof window.handleFileClick));
+            window.showDebug('displayDocumentFromBackend: ' + (typeof window.displayDocumentFromBackend));
+            
+            // Try to call displayDocumentFromBackend directly
+            if (typeof window.displayDocumentFromBackend === 'function') {
+                console.log('Calling displayDocumentFromBackend with test file');
+                window.showDebug('Calling displayDocumentFromBackend("ERL-Offer_Letter.docx")');
+                try {
+                    window.displayDocumentFromBackend('ERL-Offer_Letter.docx');
+                } catch (error) {
+                    console.error('Error calling displayDocumentFromBackend:', error);
+                    window.showDebug('ERROR: ' + error.message);
+                }
+            } else {
+                console.error('displayDocumentFromBackend is not a function!');
+                window.showDebug('ERROR: displayDocumentFromBackend not found!');
+                
+                // Try again after a delay
+                window.showDebug('Waiting 1 second and trying again...');
+                setTimeout(function() {
+                    if (typeof window.displayDocumentFromBackend === 'function') {
+                        window.showDebug('NOW FOUND! Calling displayDocumentFromBackend');
+                        try {
+                            window.displayDocumentFromBackend('ERL-Offer_Letter.docx');
+                        } catch (error) {
+                            window.showDebug('ERROR on retry: ' + error.message);
+                        }
+                    } else {
+                        window.showDebug('STILL NOT FOUND after delay!');
+                    }
+                }, 1000);
+            }
+            
+            console.log('===== Test Complete =====');
+        };
+        
+        window.testNativeAPI = function() {
+            console.log('===== Testing Native API =====');
+            console.log('pywebview exists?', typeof window.pywebview !== 'undefined');
+            console.log('pywebview object:', window.pywebview);
+            
+            if (window.pywebview) {
+                console.log('pywebview.api exists?', typeof window.pywebview.api !== 'undefined');
+                console.log('pywebview.api object:', window.pywebview.api);
+                
+                if (window.pywebview.api) {
+                    console.log('Available API methods:');
+                    for (let key in window.pywebview.api) {
+                        console.log('  - ' + key + ':', typeof window.pywebview.api[key]);
+                    }
+                    
+                    // Try to get available methods list
+                    if (typeof window.pywebview.api.getAvailableMethods === 'function') {
+                        window.pywebview.api.getAvailableMethods()
+                            .then(methods => console.log('Available methods from API:', methods))
+                            .catch(err => console.error('Error getting methods:', err));
+                    }
+                    
+                    // Try both camelCase and snake_case
+                    if (typeof window.pywebview.api.pickFile === 'function') {
+                        console.log('Calling pickFile (camelCase)...');
+                        window.pywebview.api.pickFile()
+                            .then(result => {
+                                console.log('Success! File selected:', result);
+                                alert('File selected: ' + result);
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('Error: ' + error);
+                            });
+                    } else if (typeof window.pywebview.api.pick_file === 'function') {
+                        console.log('Calling pick_file (snake_case)...');
+                        window.pywebview.api.pick_file()
+                            .then(result => {
+                                console.log('Success! File selected:', result);
+                                alert('File selected: ' + result);
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('Error: ' + error);
+                            });
+                    } else {
+                        console.error('Neither pickFile nor pick_file method found!');
+                        alert('File picker method not found on PyWebView API');
+                    }
+                } else {
+                    console.error('PyWebView API not available');
+                    alert('PyWebView API not available');
+                }
+            } else {
+                console.error('PyWebView not available - running in web mode?');
+                alert('PyWebView not available - running in web mode?');
+            }
+            console.log('===== Test Complete =====');
+        };
+        
+        debugTrace('Pre-app.js setup complete');
+    </script>
+    
+    <script src="static/js/app.js?v=1.9"></script>
+    <script src="static/js/enhanced-viewer.js?v=1.9"></script>
+    <script src="static/js/viewer-mode.js?v=1.9"></script>
+    <script src="static/js/native-integration.js?v=1.9" onload="debugTrace('native-integration.js loaded')"></script>
+    <script src="static/js/overlay-manager.js?v=1.0"></script>
+    <script src="static/js/debug-panel.js?v=1.0"></script>
+    <script>
+        debugTrace('Starting main inline script');
+        // Define all functions globally first
+        console.log('[INIT] Defining global functions');
+        
+        // Global variables
+        let fileList = [];
+        
+        // File container functions - GLOBAL SCOPE
+        // Function already defined in DocAI namespace
+        
+        // Helper functions - create aliases for DocAI functions
+        function getFileIcon(ext) {
+            return window.DocAI.getFileIcon(ext);
+        }
+        
+        function getFileExtension(fileName) {
+            return window.DocAI.getFileExtension(fileName);
+        }
+        
+        // NOTE: addFileToContainer is defined later in the file (line 642+)
+        // This avoids duplicate function definitions
+        
+        // REAL handleOpenFile implementation
+        async function handleOpenFileImpl() {
+            debugTrace('REAL handleOpenFile implementation called');
+            
+            // Check if running in native mode with API available
+            if (window.pywebview && window.pywebview.api) {
+                debugTrace('Native mode detected with API');
+                try {
+                    // Use window.handleNativeOpenFile since it's exported from native-integration.js
+                    if (window.handleNativeOpenFile) {
+                        debugTrace('Calling handleNativeOpenFile');
+                        await window.handleNativeOpenFile();
+                    } else {
+                        debugTrace('ERROR: handleNativeOpenFile not found on window');
+                        handleWebOpenFile();
+                    }
+                } catch (error) {
+                    debugTrace('ERROR: Native file picker failed: ' + error);
+                    handleWebOpenFile();
+                }
+            } else {
+                debugTrace('Web mode detected - using web file picker');
+                handleWebOpenFile();
+            }
+        }
+        
+        // Register the real implementation
+        window.handleOpenFile_real = handleOpenFileImpl;
+        debugTrace('Real handleOpenFile registered');
+        
+        
+        // Wait for PyWebView to be ready
+        function waitForPyWebView(callback) {
+            console.log('[INIT] Checking PyWebView readiness...');
+            let attempts = 0;
+            const maxAttempts = 20;
+            
+            const checkInterval = setInterval(() => {
+                attempts++;
+                console.log(`[INIT] PyWebView check attempt ${attempts}/${maxAttempts}`);
+                
+                if (window.pywebview && window.pywebview.api) {
+                    console.log('[INIT] PyWebView is ready!');
+                    clearInterval(checkInterval);
+                    callback();
+                } else if (attempts >= maxAttempts) {
+                    console.log('[INIT] PyWebView not detected, assuming web mode');
+                    clearInterval(checkInterval);
+                    callback();
+                }
+            }, 100);
+        }
+        // Robust initialization that works with PyWebView
+        function initializeWhenReady() {
+            console.log('[INIT] Checking if ready to initialize...');
+            let checks = 0;
+            const maxChecks = 30; // 3 seconds timeout
+            
+            const checkInterval = setInterval(() => {
+                checks++;
+                
+                // Check if DOM is ready and basic elements exist
+                if (document.readyState === 'complete' && document.getElementById('filebox')) {
+                    console.log('[INIT] DOM ready, initializing DocAI application');
+                    clearInterval(checkInterval);
+                    
+                    // Initialize the application
+                    window.DocAI.init();
+                    
+                    // Setup UI elements that depend on DOM
+                    setupUIHandlers();
+                    
+                } else if (checks >= maxChecks) {
+                    console.log('[INIT] Timeout reached, forcing initialization');
+                    clearInterval(checkInterval);
+                    
+                    // Force initialization anyway
+                    window.DocAI.init();
+                    setupUIHandlers();
+                }
+            }, 100);
+        }
+        
+        // Setup UI handlers after DOM is ready
+        function setupUIHandlers() {
+            console.log('[INIT] Setting up UI handlers');
+            
+            // Show default welcome message only on initial load
+            if (typeof showDefaultMode === 'function') {
+                showDefaultMode();
+            }
+            
+            // Add click handler for clear chat button
+            const clearChatBtn = document.getElementById('clearChatBtn');
+            if (clearChatBtn && typeof handleClearChat === 'function') {
+                clearChatBtn.addEventListener('click', handleClearChat);
+            }
+            
+            // Load saved language preference
+            let savedLang = 'tamil';
+            try {
+                savedLang = localStorage.getItem('language') || 'tamil';
+            } catch (e) {
+                console.warn('Could not load language preference:', e);
+            }
+            if (typeof changeLanguage === 'function') {
+                changeLanguage(savedLang);
+            }
+            
+            // Initialize drag and drop for file upload (web mode only)
+            if (!window.pywebview && typeof initializeDragAndDrop === 'function') {
+                initializeDragAndDrop();
+            }
+            
+            // Initialize overlay manager for native LibreOffice viewing
+            if (window.overlayManager && window.pywebview && window.pywebview.api) {
+                console.log('[INIT] Initializing overlay manager');
+                const documentsDir = window.DocAI.config.documentsDir || '/app/Documents';
+                window.overlayManager.initialize('native-viewer-container', documentsDir)
+                    .then(success => {
+                        if (success) {
+                            console.log('[INIT] Overlay manager initialized successfully');
+                        } else {
+                            console.warn('[INIT] Overlay manager initialization failed');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('[INIT] Overlay manager initialization error:', error);
+                    });
+            }
+            
+            // Add refresh button handler
+            const refreshBtn = document.getElementById('refreshFilesBtn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', function() {
+                    console.log('[Refresh] Button clicked');
+                    window.DocAI.refreshFiles();
+                });
+            }
+        }
+        
+        // Start initialization process
+        initializeWhenReady();
+        
+        // CRITICAL: Export functions to global scope for app.js compatibility
+        // Note: handleOpenFile is already defined above as the router function
+        // FIXED: Commented out premature exports - these functions are assigned to window when they're defined
+        // window.handleWebOpenFile = handleWebOpenFile;
+        // window.refreshFiles = refreshFiles;
+        // window.addFileToContainer = addFileToContainer;
+        // window.handleFileClick = handleFileClick;  // This doesn't exist yet!
+        // window.changeLanguage = changeLanguage;
+        // window.handleClearChat = handleClearChat;
+        // window.showDefaultMode = showDefaultMode;
+        // window.handleDocumentAgent = handleDocumentAgent;
+        // window.handleBrowserAgent = handleBrowserAgent;
+        // window.handleTwitterAgent = handleTwitterAgent;
+        // window.handleSocialAgent = handleSocialAgent;
+        // window.handleWebAgent = handleWebAgent;
+        // window.handleServiceAgent = handleServiceAgent;
+        
+        // NOTE: Document display functions will be exported after they are defined
+        
+        console.log('[INIT] Functions exported to window object for global access');
+        
+        // Final verification with timing check
+        debugTrace('=== FINAL VERIFICATION (BEFORE NATIVE-INTEGRATION LOADS) ===');
+        debugTrace('window.handleOpenFile type: ' + typeof window.handleOpenFile);
+        debugTrace('window.handleOpenFile_real type: ' + typeof window.handleOpenFile_real);
+        debugTrace('window.handleNativeOpenFile type: ' + typeof window.handleNativeOpenFile);
+        debugTrace('window.handleWebOpenFile type: ' + typeof window.handleWebOpenFile);
+        debugTrace('window.pywebview type: ' + typeof window.pywebview);
+        debugTrace('=== END VERIFICATION ===');
+        
+        // Check again after native-integration.js loads
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                debugTrace('=== VERIFICATION AFTER PAGE LOAD ===');
+                debugTrace('window.handleNativeOpenFile type: ' + typeof window.handleNativeOpenFile);
+                debugTrace('window.NativeAPI type: ' + typeof window.NativeAPI);
+                debugTrace('Native mode active: ' + (typeof pywebview !== 'undefined'));
+                debugTrace('=== END POST-LOAD VERIFICATION ===');
+            }, 500);
+        });
+
+        // Functions already defined in DocAI namespace
+        
+        function addFolderToContainer(folderName) {
+            const filebox = document.getElementById('filebox');
+            
+            // Clear the "Files will appear here" message if it exists
+            const placeholder = filebox.querySelector('.file-message');
+            if (placeholder && placeholder.textContent.includes('Files will appear here')) {
+                placeholder.remove();
+            }
+            
+            // Create folder item with ">" icon
+            const folderItem = document.createElement('div');
+            folderItem.className = 'file-item folder-item';
+            folderItem.innerHTML = `
+                <span class="expand-icon">&gt;</span>
+                <span class="file-icon">📁</span>
+                <span class="file-name">${folderName}</span>
+            `;
+            
+            // Add expand functionality
+            folderItem.addEventListener('click', function() {
+                this.classList.toggle('expanded');
+                const icon = this.querySelector('.expand-icon');
+                if (this.classList.contains('expanded')) {
+                    icon.style.transform = 'rotate(90deg)';
+                } else {
+                    icon.style.transform = 'rotate(0deg)';
+                }
+            });
+            
+            filebox.appendChild(folderItem);
+        }
+        
+        // Functions already defined in DocAI namespace and aliased above
+        
+        function getFileSize(content) {
+            if (!content) return '';
+            const size = new Blob([content]).size;
+            if (size < 1024) return `${size}B`;
+            if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)}KB`;
+            return `${(size / (1024 * 1024)).toFixed(1)}MB`;
+        }
+        
+        // Function already defined in DocAI namespace
+        // Functions already defined in DocAI namespace
+        
+        // Search files function
+        window.searchFiles = function searchFiles() {
+            const searchTerm = document.getElementById('fileSearchInput').value.toLowerCase();
+            const fileItems = document.querySelectorAll('.file-item');
+            
+            fileItems.forEach(item => {
+                const fileName = item.querySelector('.file-name').textContent.toLowerCase();
+                if (fileName.includes(searchTerm)) {
+                    item.classList.remove('hidden');
+                } else {
+                    item.classList.add('hidden');
+                }
+            });
+            
+            // Show/hide "no results" message
+            const visibleItems = document.querySelectorAll('.file-item:not(.hidden)');
+            const filebox = document.getElementById('filebox');
+            const existingNoResults = filebox.querySelector('.no-search-results');
+            
+            if (visibleItems.length === 0 && fileItems.length > 0) {
+                if (!existingNoResults) {
+                    const noResults = document.createElement('div');
+                    noResults.className = 'file-message no-search-results';
+                    noResults.textContent = '🔍 No files match your search';
+                    filebox.appendChild(noResults);
+                }
+            } else if (existingNoResults) {
+                existingNoResults.remove();
+            }
+        }
+        
+        // Delete file function
+        async function deleteFile(fileName) {
+            const t = translations[localStorage.getItem('language') || 'tamil'];
+            
+            // Confirm deletion
+            if (!confirm(`Delete file "${fileName}"?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v1/files/${encodeURIComponent(fileName)}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Remove from file list
+                        fileList = fileList.filter(f => f.name !== fileName);
+                        
+                        // Remove from UI
+                        const fileItems = document.querySelectorAll('.file-item');
+                        fileItems.forEach(item => {
+                            const nameSpan = item.querySelector('.file-name');
+                            if (nameSpan && nameSpan.textContent === fileName) {
+                                item.remove();
+                            }
+                        });
+                        
+                        // Check if filebox is now empty
+                        const filebox = document.getElementById('filebox');
+                        if (filebox && filebox.children.length === 0) {
+                            filebox.innerHTML = '<div class="file-message">📁 No files uploaded yet</div>';
+                        }
+                        
+                        // Close file viewer if this file is currently open
+                        const viewerTitle = document.querySelector('.word-toolbar span, .file-viewer-header h3');
+                        if (viewerTitle && viewerTitle.textContent.includes(fileName)) {
+                            closeFileViewer();
+                        }
+                        
+                        // Show success message
+                        const message = document.createElement('div');
+                        message.className = 'message bot-message';
+                        message.innerHTML = `<img src="static/assets/Durga.png" alt="AI">File deleted: ${fileName}`;
+                        const chatbox = document.getElementById('chatbox');
+                        if (chatbox) {
+                            chatbox.appendChild(message);
+                            chatbox.scrollTop = chatbox.scrollHeight;
+                        }
+                    } else {
+                        throw new Error(data.error || 'Delete failed');
+                    }
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Delete failed');
+                }
+            } catch (error) {
+                console.error('File delete error:', error);
+                
+                // Show error message
+                const message = document.createElement('div');
+                message.className = 'message bot-message error-message';
+                message.innerHTML = `<img src="static/assets/Durga.png" alt="AI">Error deleting file: ${error.message}`;
+                const chatbox = document.getElementById('chatbox');
+                if (chatbox) {
+                    chatbox.appendChild(message);
+                    chatbox.scrollTop = chatbox.scrollHeight;
+                }
+            }
+        }
+        
+        // Document context for edit functionality
+        window.documentContext = {
+            currentDocument: null,
+            isEditing: false,
+            selectedContent: null
+        };
+        
+        // Enable edit mode for document
+        window.enableEditMode = function enableEditMode(fileName) {
+            // Check if in native viewer mode
+            if (window.viewerManager && viewerManager.currentMode === 'native') {
+                // Show notification to switch to HTML mode
+                if (confirm('Edit mode requires HTML view. Switch to HTML view now?')) {
+                    viewerManager.currentMode = 'html';
+                    localStorage.setItem('viewerMode', 'html');
+                    viewerManager.updateButtonText();
+                    viewerManager.loadDocument(fileName);
+                    
+                    // Re-enable edit mode after document loads
+                    setTimeout(() => {
+                        enableEditMode(fileName);
+                    }, 1000);
+                }
+                return;
+            }
+            
+            window.documentContext.currentDocument = fileName;
+            window.documentContext.isEditing = true;
+            
+            // Add selection event listener
+            document.addEventListener('mouseup', handleTextSelection);
+            
+            // Add visual indicator
+            const editButton = document.querySelector('.edit-button');
+            if (editButton) {
+                editButton.innerHTML = '<i class="fas fa-check"></i> Editing';
+                editButton.style.background = '#4CAF50';
+                editButton.style.color = 'white';
+            }
+            
+            // Make document selectable
+            const wordContent = document.querySelector('.word-content');
+            if (wordContent) {
+                wordContent.style.userSelect = 'text';
+                wordContent.style.cursor = 'text';
+            }
+        }
+        
+        // Handle text selection
+        function handleTextSelection(e) {
+            const selection = window.getSelection();
+            const selectedText = selection.toString().trim();
+            
+            if (selectedText && window.documentContext.isEditing) {
+                window.documentContext.selectedContent = {
+                    text: selectedText,
+                    range: selection.getRangeAt(0)
+                };
+                
+                // Show context menu
+                showEditContextMenu(e.pageX, e.pageY, selectedText);
+            }
+        }
+        
+        // Show context menu for selected text
+        function showEditContextMenu(x, y, selectedText) {
+            // Remove existing menu
+            const existingMenu = document.querySelector('.edit-context-menu');
+            if (existingMenu) {
+                existingMenu.remove();
+            }
+            
+            // Create context menu
+            const menu = document.createElement('div');
+            menu.className = 'edit-context-menu';
+            menu.innerHTML = `
+                <div class="menu-item" onclick="askAboutSelection()" style="padding: 8px 16px; cursor: pointer; white-space: nowrap; color: #333;">
+                    <i class="fas fa-question-circle" style="margin-right: 5px;"></i> Ask about this
+                </div>
+                <div class="menu-item" onclick="editSelection()" style="padding: 8px 16px; cursor: pointer; white-space: nowrap; color: #333;">
+                    <i class="fas fa-edit" style="margin-right: 5px;"></i> Edit this
+                </div>
+                <style>
+                    .menu-item:hover {
+                        background-color: #f0f0f0;
+                    }
+                </style>
+            `;
+            menu.style.cssText = `
+                position: absolute;
+                left: ${x}px;
+                top: ${y}px;
+                background: white;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                z-index: 10000;
+                padding: 8px 0;
+            `;
+            
+            document.body.appendChild(menu);
+            
+            // Remove menu on click outside
+            setTimeout(() => {
+                document.addEventListener('click', function removeMenu(e) {
+                    if (!menu.contains(e.target)) {
+                        menu.remove();
+                        document.removeEventListener('click', removeMenu);
+                    }
+                });
+            }, 100);
+        }
+        
+        // Send selected text to chatbot for questions
+        window.askAboutSelection = function askAboutSelection() {
+            const selectedText = window.documentContext?.selectedContent?.text;
+            if (!selectedText) return;
+            
+            const chatInput = document.getElementById('userInput');
+            if (chatInput) {
+                chatInput.value = `What does this mean: "${selectedText}"`;
+                chatInput.focus();
+                
+                // Optionally trigger send
+                const sendBtn = document.getElementById('sendBtn');
+                if (sendBtn) {
+                    sendBtn.click();
+                }
+            }
+            
+            // Remove context menu
+            const menu = document.querySelector('.edit-context-menu');
+            if (menu) menu.remove();
+        }
+        
+        // Send selected text to chatbot for editing
+        window.editSelection = function editSelection() {
+            const selectedText = window.documentContext?.selectedContent?.text;
+            if (!selectedText) return;
+            
+            const chatInput = document.getElementById('userInput');
+            if (chatInput) {
+                chatInput.value = `Edit this text: "${selectedText}"`;
+                chatInput.focus();
+            }
+            
+            // Remove context menu
+            const menu = document.querySelector('.edit-context-menu');
+            if (menu) menu.remove();
+        }
+        
+        
+        // handleWebOpenFile is now defined globally at the top
+            
+            // Helper function to process the selected file
+            async function processSelectedFile(file) {
+                console.log('[processSelectedFile] Starting with file:', file.name);
+                const t = translations[localStorage.getItem('language') || 'tamil'];
+                
+                // Show loading state
+                const loadingDiv = document.getElementById('loading');
+                if (loadingDiv) {
+                    loadingDiv.style.display = 'block';
+                    console.log('[processSelectedFile] Loading div shown');
+                }
+                
+                try {
+                    // Upload file to server
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    console.log('[processSelectedFile] FormData created with file:', file.name);
+                    
+                    console.log('[processSelectedFile] Sending upload request to /api/v1/upload');
+                    const response = await fetch('/api/v1/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    console.log('[processSelectedFile] Response status:', response.status);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log('[processSelectedFile] Response data:', data);
+                        
+                        if (data.success) {
+                            const fileExt = getFileExtension(data.file.filename);
+                            console.log('[processSelectedFile] File extension:', fileExt);
+                            
+                            // Refresh the file list to show the new file
+                            console.log('[processSelectedFile] Calling refreshFiles to update file list');
+                            await refreshFiles();
+                            
+                            // Add success message to chat
+                            const message = document.createElement('div');
+                            message.className = 'message bot-message';
+                            message.innerHTML = `<img src="static/assets/Durga.png" alt="AI">${t.uploadSuccess}: ${data.file.filename}`;
+                            const chatbox = document.getElementById('chatbox');
+                            if (chatbox) {
+                                chatbox.appendChild(message);
+                                chatbox.scrollTop = chatbox.scrollHeight;
+                                console.log('[processSelectedFile] Success message added to chat');
+                            }
+                            
+                            // Auto-load document if it's a supported format
+                            if (['doc', 'docx', 'pdf', 'odt'].includes(fileExt)) {
+                                console.log('[processSelectedFile] Auto-loading document');
+                                handleFileClick(data.file.filename, null);
+                            }
+                        } else {
+                            throw new Error(data.error || 'Upload failed');
+                        }
+                    } else {
+                        const errorData = await response.json();
+                        console.error('[processSelectedFile] Server error:', errorData);
+                        throw new Error(errorData.error || 'Upload failed');
+                    }
+                } catch (error) {
+                    console.error('[processSelectedFile] Error:', error);
+                    
+                    // Show error message
+                    const message = document.createElement('div');
+                    message.className = 'message bot-message error-message';
+                    message.innerHTML = `<img src="static/assets/Durga.png" alt="AI">Error: ${error.message}`;
+                    const chatbox = document.getElementById('chatbox');
+                    if (chatbox) {
+                        chatbox.appendChild(message);
+                        chatbox.scrollTop = chatbox.scrollHeight;
+                    }
+                } finally {
+                    // Hide loading state
+                    if (loadingDiv) {
+                        loadingDiv.style.display = 'none';
+                        console.log('[processSelectedFile] Loading div hidden');
+                    }
+                }
+            }
+        }
+        
+        function handleOpenFolder() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.webkitdirectory = true;
+            input.onchange = function(e) {
+                const files = Array.from(e.target.files);
+                const t = translations[localStorage.getItem('language') || 'tamil'];
+                
+                // Add to chat (existing functionality)
+                const message = document.createElement('div');
+                message.className = 'message bot-message';
+                message.innerHTML = `<img src="Durga.png" alt="AI">${t.openedFolder}${files.length}`;
+                const chatbox = document.getElementById('chatbox');
+                if (chatbox) {
+                    chatbox.appendChild(message);
+                    chatbox.scrollTop = chatbox.scrollHeight;
+                }
+                
+                // Add files to file container
+                files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const fileContent = event.target.result;
+                        const fileExt = getFileExtension(file.name);
+                        const relativePath = file.webkitRelativePath || file.name;
+                        
+                        // Add to file container
+                        addFileToContainer(relativePath, fileExt, fileContent);
+                    };
+                    
+                    // Read file based on type
+                    if (file.type.startsWith('text/') || file.name.endsWith('.js') || file.name.endsWith('.html') || file.name.endsWith('.css') || file.name.endsWith('.json') || file.name.endsWith('.md')) {
+                        reader.readAsText(file);
+                    } else {
+                        reader.readAsDataURL(file);
+                    }
+                });
+            };
+            input.click();
+        }
+        
+        // Create file and folder functionality
+        function createNewFile() {
+            const fileName = prompt('Enter file name (with extension):');
+            if (fileName && fileName.trim()) {
+                const fileExt = getFileExtension(fileName);
+                const defaultContent = getDefaultFileContent(fileExt);
+                addFileToContainer(fileName, fileExt, defaultContent);
+                
+                // Also add to chat
+                const t = translations[localStorage.getItem('language') || 'tamil'];
+                const message = document.createElement('div');
+                message.className = 'message bot-message';
+                message.innerHTML = `<img src="Durga.png" alt="AI">Created file: ${fileName}`;
+                const chatbox = document.getElementById('chatbox');
+                if (chatbox) {
+                    chatbox.appendChild(message);
+                    chatbox.scrollTop = chatbox.scrollHeight;
+                }
+            }
+            hideCreateOptions();
+        }
+        
+        function createNewFolder() {
+            const folderName = prompt('Enter folder name:');
+            if (folderName && folderName.trim()) {
+                // Add folder to structure
+                if (!fileStructure[folderName]) {
+                    fileStructure[folderName] = {
+                        type: 'folder',
+                        children: {},
+                        expanded: false
+                    };
+                    rebuildFileTree();
+                    
+                    // Also add to chat
+                    const message = document.createElement('div');
+                    message.className = 'message bot-message';
+                    message.innerHTML = `<img src="Durga.png" alt="AI">Created folder: ${folderName}`;
+                    const chatbox = document.getElementById('chatbox');
+                    if (chatbox) {
+                        chatbox.appendChild(message);
+                        chatbox.scrollTop = chatbox.scrollHeight;
+                    }
+                }
+            }
+            hideCreateOptions();
+        }
+        
+        function getDefaultFileContent(ext) {
+            const templates = {
+                'js': '// JavaScript file\nconsole.log("Hello World");',
+                'html': '<!DOCTYPE html>\n<html>\n<head>\n    <title>New Page</title>\n</head>\n<body>\n    <h1>Hello World</h1>\n</body>\n</html>',
+                'css': '/* CSS file */\nbody {\n    font-family: Arial, sans-serif;\n    margin: 0;\n    padding: 20px;\n}',
+                'py': '# Python file\nprint("Hello World")',
+                'json': '{\n    "name": "example",\n    "value": "Hello World"\n}',
+                'md': '# New Document\n\nThis is a new markdown document.',
+                'txt': 'This is a new text file.'
+            };
+            return templates[ext] || 'New file content';
+        }
+        
+        function showCreateOptions() {
+            const options = document.querySelector('.create-options');
+            options.classList.add('show');
+        }
+        
+        function hideCreateOptions() {
+            const options = document.querySelector('.create-options');
+            options.classList.remove('show');
+        }
+        
+        // Event listeners are now in the consolidated initialization above
+
+        function handleSaveAs() {
+            const chatContent = document.getElementById('chatbox').innerText;
+            const blob = new Blob([chatContent], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'chat_history.txt';
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            const t = translations[localStorage.getItem('language') || 'tamil'];
+            const message = document.createElement('div');
+            message.className = 'message bot-message';
+            message.innerHTML = `<img src="Durga.png" alt="AI">${t.chatSaved}`;
+            document.getElementById('chatbox').appendChild(message);
+        }
+        
+        // Initialize drag and drop functionality
+        function initializeDragAndDrop() {
+            const fileContainer = document.querySelector('.file-container');
+            if (!fileContainer) return;
+            
+            // Add drag and drop event listeners
+            fileContainer.addEventListener('dragover', handleDragOver);
+            fileContainer.addEventListener('dragleave', handleDragLeave);
+            fileContainer.addEventListener('drop', handleDrop);
+            
+            // Add visual styles for drag and drop
+            const style = document.createElement('style');
+            style.textContent = `
+                .file-container.drag-over {
+                    background-color: rgba(33, 150, 243, 0.1);
+                    border: 2px dashed #2196F3;
+                }
+                .file-container.drag-over #filebox {
+                    opacity: 0.6;
+                }
+                .file-container.drag-over::after {
+                    content: '📁 Drop files here to upload';
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    font-size: 18px;
+                    color: #2196F3;
+                    font-weight: bold;
+                    z-index: 10;
+                    background: white;
+                    padding: 20px;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Add visual feedback
+            const fileContainer = document.querySelector('.file-container');
+            fileContainer.classList.add('drag-over');
+        }
+        
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Remove visual feedback
+            const fileContainer = document.querySelector('.file-container');
+            if (e.target === fileContainer || !fileContainer.contains(e.relatedTarget)) {
+                fileContainer.classList.remove('drag-over');
+            }
+        }
+        
+        async function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Remove visual feedback
+            const fileContainer = document.querySelector('.file-container');
+            fileContainer.classList.remove('drag-over');
+            
+            // Get dropped files
+            const files = Array.from(e.dataTransfer.files);
+            if (files.length === 0) return;
+            
+            const t = translations[localStorage.getItem('language') || 'tamil'];
+            const loadingDiv = document.getElementById('loading');
+            if (loadingDiv) loadingDiv.style.display = 'block';
+            
+            let successCount = 0;
+            let failedFiles = [];
+            
+            // Upload each file
+            for (const file of files) {
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    const response = await fetch('/api/v1/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            successCount++;
+                            const fileExt = getFileExtension(data.file.filename);
+                            
+                            // Add to file container
+                            addFileToContainer(data.file.filename, fileExt, null);
+                            
+                            // Auto-load first document if it's a supported format
+                            if (successCount === 1 && ['doc', 'docx', 'pdf', 'odt'].includes(fileExt)) {
+                                handleFileClick(data.file.filename, null);
+                            }
+                        } else {
+                            failedFiles.push({ name: file.name, error: data.error });
+                        }
+                    } else {
+                        const errorData = await response.json();
+                        failedFiles.push({ name: file.name, error: errorData.error });
+                    }
+                } catch (error) {
+                    console.error('File upload error:', error);
+                    failedFiles.push({ name: file.name, error: error.message });
+                }
+            }
+            
+            // Hide loading
+            if (loadingDiv) loadingDiv.style.display = 'none';
+            
+            // Show results
+            const chatbox = document.getElementById('chatbox');
+            if (chatbox) {
+                if (successCount > 0) {
+                    const successMsg = document.createElement('div');
+                    successMsg.className = 'message bot-message';
+                    successMsg.innerHTML = `<img src="static/assets/Durga.png" alt="AI">${successCount} file(s) uploaded successfully`;
+                    chatbox.appendChild(successMsg);
+                }
+                
+                if (failedFiles.length > 0) {
+                    const errorMsg = document.createElement('div');
+                    errorMsg.className = 'message bot-message error-message';
+                    errorMsg.innerHTML = `<img src="static/assets/Durga.png" alt="AI">Failed to upload ${failedFiles.length} file(s):<br>` +
+                        failedFiles.map(f => `• ${f.name}: ${f.error}`).join('<br>');
+                    chatbox.appendChild(errorMsg);
+                }
+                
+                chatbox.scrollTop = chatbox.scrollHeight;
+            }
+        }
+
+        // Agent handling functions
+        window.handleBrowserAgent = function handleBrowserAgent() {
+            const chatContainer = document.querySelector('.chat-container');
+            if (chatContainer) {
+                chatContainer.innerHTML = `
+                    <div class="browser-agent-container">
+                        <div class="browser-agent-header">
+                            <h3>🌐 Browser Agent</h3>
+                            <button onclick="closeBrowserAgent()" class="close-btn">✕</button>
+                        </div>
+                        <div class="browser-agent-content">
+                            <iframe src="http://127.0.0.1:7788" 
+                                    style="width: 100%; height: 100%; border: none; border-radius: 8px;"
+                                    id="browserAgentFrame"
+                                    frameborder="0">
+                            </iframe>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        function closeBrowserAgent() {
+            const chatContainer = document.querySelector('.chat-container');
+            if (chatContainer) {
+                chatContainer.innerHTML = '<!-- Center content will go here -->';
+            }
+        }
+
+        // Placeholder for automation functions
+        async function startAutomation(action) {
+            const statusLog = document.getElementById('statusLog');
+            const results = document.getElementById('automationResults');
+            
+            try {
+                statusLog.innerHTML += `<div>Starting ${action}...</div>`;
+                
+                // Here we would call your actual automation functions
+                // For example:
+                // if (action === 'navigate') {
+                //     await yourAutomationModule.navigateToUrl(url);
+                // }
+                
+                statusLog.innerHTML += `<div>${action} completed successfully</div>`;
+            } catch (error) {
+                statusLog.innerHTML += `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        window.handleDocumentAgent = function handleDocumentAgent() {
+            const t = translations[localStorage.getItem('language') || 'tamil'];
+            const message = document.createElement('div');
+            message.className = 'message bot-message agent-message';
+            message.innerHTML = `
+                <img src="Durga.png" alt="AI">
+                ${t.documentAgentMsg}
+            `;
+            document.getElementById('chatbox').appendChild(message);
+            document.getElementById('userInput').placeholder = t.documentAgent;
+        }
+
+        window.handleTwitterAgent = function handleTwitterAgent() {
+            const t = translations[localStorage.getItem('language') || 'tamil'];
+            const message = document.createElement('div');
+            message.className = 'message bot-message agent-message';
+            message.innerHTML = `
+                <img src="Durga.png" alt="AI">
+                ${t.twitterAgentMsg}
+            `;
+            document.getElementById('chatbox').appendChild(message);
+            document.getElementById('userInput').placeholder = t.twitterAgent;
+        }
+        
+        // Missing agent handler functions
+        window.handleSocialAgent = function handleSocialAgent() {
+            console.log('[handleSocialAgent] Called');
+            const message = document.createElement('div');
+            message.className = 'message bot-message agent-message';
+            message.innerHTML = `<img src="static/assets/Durga.png" alt="AI">Social Agent - Coming Soon`;
+            document.getElementById('chatbox').appendChild(message);
+        }
+        
+        window.handleWebAgent = function handleWebAgent() {
+            console.log('[handleWebAgent] Called');
+            const message = document.createElement('div');
+            message.className = 'message bot-message agent-message';
+            message.innerHTML = `<img src="static/assets/Durga.png" alt="AI">Web Agent - Coming Soon`;
+            document.getElementById('chatbox').appendChild(message);
+        }
+        
+        window.handleServiceAgent = function handleServiceAgent() {
+            console.log('[handleServiceAgent] Called');
+            const message = document.createElement('div');
+            message.className = 'message bot-message agent-message';
+            message.innerHTML = `<img src="static/assets/Durga.png" alt="AI">Service Agent - Coming Soon`;
+            document.getElementById('chatbox').appendChild(message);
+        }
+        
+
+        // First, add a function to create and show the default welcome message
+        window.showDefaultMode = function showDefaultMode() {
+            const t = translations[localStorage.getItem('language') || 'tamil'];
+            const chatbox = document.getElementById('chatbox');
+            
+            // Only show welcome message if chatbox is empty or only contains empty message div
+            if (!chatbox.children.length || (chatbox.children.length === 1 && !chatbox.children[0].textContent.trim())) {
+                const message = document.createElement('div');
+                message.className = 'message bot-message welcome-message';
+                message.innerHTML = `
+                    <img src="Durga.png" alt="AI">
+                    ${t.welcomeMessage}
+                `;
+                chatbox.innerHTML = ''; // Clear any empty message divs
+                chatbox.appendChild(message);
+            }
+            
+            // Reset the input placeholder to default
+            document.getElementById('userInput').placeholder = t.inputPlaceholder;
+        }
+
+        // Add clear chat functionality
+        window.handleClearChat = function handleClearChat() {
+            const chatbox = document.getElementById('chatbox');
+            chatbox.innerHTML = ''; // Clear all messages
+            showDefaultMode(); // Show welcome message after clearing
+        }
+
+        
+        // Note: Initialization is now handled in the consolidated DOMContentLoaded listener above
+
+        // Toggle viewer mode function
+        window.toggleViewerMode = function() {
+            console.log('[toggleViewerMode] Function called');
+            if (window.viewerManager) {
+                window.viewerManager.toggleMode();
+            } else {
+                console.error('[toggleViewerMode] ViewerManager not found');
+                alert('Viewer mode switching is not available');
+            }
+        };
+
+        // Language translations
+        const translations = {
+            tamil: {
+                title: 'துர்கா AI - Native',
+                files: 'கோப்புகள்',
+                agents: 'முகவர்கள்',
+                language: 'மொழி',
+                openFile: 'கோப்பைத் திறக்கவும்',
+                openMultipleFiles: 'பல கோப்புகளைத் திறக்கவும்',
+                openFolder: 'கோப்புறையைத் திறக்கவும்',
+                saveAs: 'இவ்வாறு சேமிக்கவும்',
+                browserAgent: 'உலாவி முகவரிடம் கேள்வி கேளுங்கள்...',
+                documentAgent: 'ஆவண முகவரிடம் கேள்வி கேளுங்கள்...',
+                twitterAgent: 'ட்விட்டர் முகவரிடம் கேள்வி கேளுங்கள்...',
+                clearChat: 'அரட்டையை அழிக்கவும்',
+                inputPlaceholder: 'உங்கள் கேள்வியை உள்ளிடவும்...',
+                send: 'அனுப்பவும்',
+                micTitle: 'பதிவு செய்ய தட்டவும்',
+                browserAgentMsg: 'உலாவி முகவர் செயல்படுத்தப்பட்டது. நான் எவ்வாறு உதவ முடியும்?',
+                documentAgentMsg: 'ஆவண முகவர் செயல்படுத்தப்பட்டது. ஆவணங்களை பகுப்பாய்வு செய்ய நான் உதவுவேன்.',
+                twitterAgentMsg: 'ட்விட்டர் முகவர் செயல்படுத்தப்பட்டது. ட்விட்டர் தரவுகளை பகுப்பாய்வு செய்ய நான் உதவுவேன்.',
+                uploadedFile: 'பதிவேற்றிய கோப்பு: ',
+                openedFile: 'திறந்த கோப்பு: ',
+                openedFolder: 'திறந்த கோப்புறையில் உள்ள கோப்புகள்: ',
+                welcomeMessage: 'வணக்கம்! நான் துர்கா AI, உங்களுக்கு எவ்வாறு உதவ முடியும்?',
+                uploadSuccess: 'கோப்பு வெற்றிகரமாக பதிவேற்றப்பட்டது',
+                fileOpened: 'கோப்பு வெற்றிகரமாக திறக்கப்பட்டது',
+                folderOpened: 'கோப்புறை வெற்றிகரமாக திறக்கப்பட்டது',
+                chatSaved: 'அரட்டை வரலாறு சேமிக்கப்பட்டது',
+                documentAgentName: 'ஆவண முகவர்',
+                browserAgentName: 'உலாவி முகவர்',
+                socialAgentName: 'சமூக முகவர்',
+                webAgentName: 'வலை முகவர்',
+                serviceAgentName: 'சேவை முகவர்',
+                twitterAgentName: 'ட்விட்டர் முகவர்'
+            },
+            english: {
+                title: 'Durga AI - Native',
+                files: 'Files',
+                agents: 'Agents',
+                language: 'Language',
+                openFile: 'Open File',
+                openMultipleFiles: 'Open Multiple Files',
+                openFolder: 'Open Folder',
+                saveAs: 'Save As',
+                browserAgent: 'Ask the Browser Agent...',
+                documentAgent: 'Ask the Document Agent...',
+                twitterAgent: 'Ask the Twitter Agent...',
+                clearChat: 'Clear Chat',
+                inputPlaceholder: 'Type your question...',
+                send: 'Send',
+                micTitle: 'Click to record',
+                browserAgentMsg: 'Browser Agent activated. How can I help you browse the web?',
+                documentAgentMsg: 'Document Agent activated. I can help you analyze and work with documents.',
+                twitterAgentMsg: 'Twitter Agent activated. I can help you analyze Twitter data and trends.',
+                uploadedFile: 'Uploaded file: ',
+                openedFile: 'Opened file: ',
+                openedFolder: 'Files in opened folder: ',
+                welcomeMessage: 'Hello! I am Durga AI, how can I help you?',
+                uploadSuccess: 'File uploaded successfully',
+                fileOpened: 'File opened successfully',
+                folderOpened: 'Folder opened successfully',
+                chatSaved: 'Chat history saved',
+                documentAgentName: 'Document Agent',
+                browserAgentName: 'Browser Agent',
+                socialAgentName: 'Social Agent',
+                webAgentName: 'Web Agent',
+                serviceAgentName: 'Service Agent',
+                twitterAgentName: 'Twitter Agent'
+            }
+        };
+
+        window.changeLanguage = function changeLanguage(lang) {
+            // Store language preference
+            localStorage.setItem('language', lang);
+            
+            // Update UI elements
+            const t = translations[lang];
+            
+            // Update title
+            document.title = t.title;
+            document.querySelector('.branding h1').textContent = t.title.replace(' - Native', '');
+            
+            // Update menu buttons - Fix the button text comparison
+            const menuButtons = document.querySelectorAll('.menu-button');
+            menuButtons.forEach(button => {
+                // Check the button's position to determine which translation to use
+                if (button.parentElement === document.querySelector('.dropdown:nth-child(1)')) {
+                    button.textContent = t.files;
+                } else if (button.parentElement === document.querySelector('.dropdown:nth-child(2)')) {
+                    button.textContent = t.agents;
+                } else if (button.parentElement === document.querySelector('.dropdown:nth-child(3)')) {
+                    button.textContent = t.language;
+                }
+            });
+            
+            // Update dropdown items with translations
+            document.querySelectorAll('.dropdown').forEach((dropdown, index) => {
+                const items = dropdown.querySelectorAll('.dropdown-item');
+                if (index === 0) { // Files dropdown
+                    if (items[0]) items[0].textContent = t.openFile;
+                    if (items[1]) items[1].textContent = t.openMultipleFiles;
+                    if (items[2]) items[2].textContent = t.openFolder;
+                    if (items[3]) items[3].textContent = t.saveAs;
+                } else if (index === 1) { // Agents dropdown
+                    // Update agent names while preserving status indicators
+                    if (items[0]) {
+                        const status0 = items[0].querySelector('span');
+                        items[0].innerHTML = t.documentAgentName + ' ';
+                        if (status0) items[0].appendChild(status0);
+                    }
+                    if (items[1]) {
+                        const status1 = items[1].querySelector('span');
+                        items[1].innerHTML = t.browserAgentName + ' ';
+                        if (status1) items[1].appendChild(status1);
+                    }
+                    if (items[2]) {
+                        const status2 = items[2].querySelector('span');
+                        items[2].innerHTML = t.socialAgentName + ' ';
+                        if (status2) items[2].appendChild(status2);
+                    }
+                    if (items[3]) {
+                        const status3 = items[3].querySelector('span');
+                        items[3].innerHTML = t.webAgentName + ' ';
+                        if (status3) items[3].appendChild(status3);
+                    }
+                    if (items[4]) {
+                        const status4 = items[4].querySelector('span');
+                        items[4].innerHTML = t.serviceAgentName + ' ';
+                        if (status4) items[4].appendChild(status4);
+                    }
+                    if (items[5]) {
+                        const status5 = items[5].querySelector('span');
+                        items[5].innerHTML = t.twitterAgentName + ' ';
+                        if (status5) items[5].appendChild(status5);
+                    }
+                }
+                // Language dropdown items remain unchanged
+            });
+            
+            // Update other UI elements
+            document.getElementById('clearChatBtn').textContent = t.clearChat;
+            document.getElementById('userInput').placeholder = t.inputPlaceholder;
+            document.getElementById('sendBtn').textContent = t.send;
+            document.getElementById('micBtn').title = t.micTitle;
+            
+            // Update agent messages
+            window.browserAgentMsg = t.browserAgentMsg;
+            window.documentAgentMsg = t.documentAgentMsg;
+            window.twitterAgentMsg = t.twitterAgentMsg;
+            
+            // Update welcome message if it exists
+            const welcomeMsg = document.querySelector('.welcome-message');
+            if (welcomeMsg) {
+                welcomeMsg.innerHTML = `<img src="static/assets/Durga.png" alt="AI">${t.welcomeMessage}`;
+            }
+
+            // Update existing chat messages
+            const messages = document.querySelectorAll('.bot-message');
+            messages.forEach(message => {
+                const messageText = message.textContent.trim();
+                
+                // Create a new message element to preserve the image
+                const updatedMessage = document.createElement('div');
+                updatedMessage.className = 'message bot-message';
+                
+                // Check message content and update accordingly
+                if (messageText.includes('Browser Agent') || messageText.includes('உலாவி முகவர்')) {
+                    updatedMessage.innerHTML = `<img src="Durga.png" alt="AI">${t.browserAgentMsg}`;
+                    message.innerHTML = updatedMessage.innerHTML;
+                    document.getElementById('userInput').placeholder = t.browserAgent;
+                }
+                else if (messageText.includes('Document Agent') || messageText.includes('ஆவண முகவர்')) {
+                    updatedMessage.innerHTML = `<img src="Durga.png" alt="AI">${t.documentAgentMsg}`;
+                    message.innerHTML = updatedMessage.innerHTML;
+                    document.getElementById('userInput').placeholder = t.documentAgent;
+                }
+                else if (messageText.includes('Twitter Agent') || messageText.includes('ட்விட்டர் முகவர்')) {
+                    updatedMessage.innerHTML = `<img src="Durga.png" alt="AI">${t.twitterAgentMsg}`;
+                    message.innerHTML = updatedMessage.innerHTML;
+                    document.getElementById('userInput').placeholder = t.twitterAgent;
+                }
+                else if (messageText.includes('Uploaded file:') || messageText.includes('பதிவேற்றிய கோப்பு:')) {
+                    const fileName = messageText.split(':')[1].trim();
+                    updatedMessage.innerHTML = `<img src="Durga.png" alt="AI">${t.uploadedFile}${fileName}`;
+                    message.innerHTML = updatedMessage.innerHTML;
+                }
+                else if (messageText.includes('Opened file:') || messageText.includes('திறந்த கோப்பு:')) {
+                    const fileName = messageText.split(':')[1].trim();
+                    updatedMessage.innerHTML = `<img src="Durga.png" alt="AI">${t.openedFile}${fileName}`;
+                    message.innerHTML = updatedMessage.innerHTML;
+                }
+                else if (messageText.includes('Opened folder with') || messageText.includes('திறந்த கோப்புறையில் உள்ள கோப்புகள்:')) {
+                    const fileCount = messageText.match(/\d+/)[0];
+                    updatedMessage.innerHTML = `<img src="Durga.png" alt="AI">${t.openedFolder}${fileCount}`;
+                    message.innerHTML = updatedMessage.innerHTML;
+                }
+            });
+        }
+    </script>
+    
+    <!-- Inline fix for file display issue -->
+    <script>
+        // LibreOffice test function
+        async function testLibreOfficeEmbedding() {
+            console.log('[TEST] Testing LibreOffice embedding...');
+            
+            try {
+                // Check if API is available
+                if (typeof pywebview === 'undefined' || typeof pywebview.api === 'undefined') {
+                    alert('PyWebView API not available. Please restart the app.');
+                    return;
+                }
+                
+                // Debug: Check available methods
+                console.log('[TEST] Checking available methods...');
+                try {
+                    // Check if getAvailableMethods exists and is callable
+                    if (typeof pywebview.api.getAvailableMethods === 'function') {
+                        const methods = await pywebview.api.getAvailableMethods();
+                        console.log('[TEST] Available methods:', methods);
+                    } else {
+                        console.log('[TEST] getAvailableMethods not available, checking methods manually...');
+                        // Manual check
+                        const manualMethods = [];
+                        for (let key in pywebview.api) {
+                            if (typeof pywebview.api[key] === 'function') {
+                                manualMethods.push(key);
+                            }
+                        }
+                        console.log('[TEST] Manual method scan:', manualMethods);
+                    }
+                } catch (e) {
+                    console.error('[TEST] Error checking methods:', e);
+                }
+                
+                // Check LibreOffice availability
+                console.log('[TEST] Checking LibreOffice...');
+                let checkResult = { available: false };
+                
+                try {
+                    if (typeof pywebview.api.checkLibreOffice === 'function') {
+                        checkResult = await pywebview.api.checkLibreOffice();
+                        console.log('[TEST] LibreOffice check result:', checkResult);
+                    } else {
+                        console.warn('[TEST] checkLibreOffice method not found, skipping check');
+                        // Skip the check for now
+                        checkResult = { available: true, warning: 'Check skipped' };
+                    }
+                } catch (e) {
+                    console.error('[TEST] Error checking LibreOffice:', e);
+                    // Continue anyway
+                    checkResult = { available: true, error: e.message };
+                }
+                
+                if (!checkResult.available && !checkResult.warning) {
+                    alert('LibreOffice is not available on your system.\n\nPlease install LibreOffice to use this feature.');
+                    return;
+                }
+                
+                // Pick a file
+                console.log('[TEST] Opening file picker...');
+                const filePath = await pywebview.api.pickFile();
+                
+                if (!filePath) {
+                    console.log('[TEST] No file selected');
+                    return;
+                }
+                
+                console.log('[TEST] File selected:', filePath);
+                
+                // Embed the document
+                if (confirm(`Open this document in LibreOffice?\n\n${filePath}`)) {
+                    console.log('[TEST] Embedding document...');
+                    
+                    try {
+                        if (typeof pywebview.api.embedDocument === 'function') {
+                            const embedResult = await pywebview.api.embedDocument(filePath);
+                            console.log('[TEST] Embed result:', embedResult);
+                            
+                            if (embedResult.success) {
+                                alert(`Document opened in LibreOffice!\n\nMode: ${embedResult.mode}\n${embedResult.message}`);
+                            } else {
+                                alert(`Failed to open document:\n\n${embedResult.error}`);
+                            }
+                        } else {
+                            console.error('[TEST] embedDocument method not found');
+                            // Fallback: Use the backend endpoint
+                            console.log('[TEST] Trying backend endpoint fallback...');
+                            
+                            const response = await fetch('/api/open_with_libreoffice', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({file_path: filePath})
+                            });
+                            
+                            const result = await response.json();
+                            if (result.success) {
+                                alert('Document opened with LibreOffice (via backend)');
+                            } else {
+                                alert('Failed to open document: ' + result.error);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('[TEST] Error embedding document:', e);
+                        alert('Error: ' + e.message);
+                    }
+                }
+                
+            } catch (error) {
+                console.error('[TEST] Error:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        // Original simple approach for fallback
+        async function testLibreOfficeEmbeddingSimple() {
+            console.log('[TEST] Testing LibreOffice embedding (simple)...');
+            
+            // Simple approach - use the existing file picker
+            const fileSelected = await new Promise((resolve) => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.txt,.pdf,.doc,.docx,.odt';
+                
+                input.onchange = async function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        // For native app, we need the file path
+                        // Since we can't get the real path from web file input,
+                        // let's show instructions
+                        const fileName = file.name;
+                        
+                        if (confirm(`Selected: ${fileName}\n\nTo test LibreOffice:\n1. Click on the file in the left panel\n2. When it loads, we'll add a "Open in LibreOffice" button`)) {
+                            // Add file to container if not already there
+                            const filebox = document.getElementById('filebox');
+                            if (filebox && !Array.from(filebox.children).some(child => child.textContent.includes(fileName))) {
+                                const placeholder = filebox.querySelector('.file-message');
+                                if (placeholder) placeholder.remove();
+                                
+                                const fileItem = document.createElement('div');
+                                fileItem.className = 'file-item';
+                                fileItem.style.cssText = 'padding: 8px 12px; margin: 4px 0; background: #f5f5f5; border-radius: 4px; cursor: pointer; display: flex; align-items: center;';
+                                fileItem.innerHTML = '<span style="margin-right: 8px;">📄</span>' + fileName;
+                                
+                                // Store file for later use
+                                fileItem.dataset.testFile = 'true';
+                                fileItem.onclick = function() {
+                                    // Open in LibreOffice button will be added when document loads
+                                    alert('Document loading... Look for "Open in LibreOffice" button in the viewer area.');
+                                };
+                                
+                                filebox.appendChild(fileItem);
+                            }
+                        }
+                        resolve(true);
+                    } else {
+                        resolve(false);
+                    }
+                };
+                
+                input.click();
+            });
+            
+            if (!fileSelected) {
+                console.log('[TEST] No file selected');
+            }
+        }
+        window.testLibreOfficeEmbedding = testLibreOfficeEmbedding;
+        
+        // Quick fix to ensure files show in the container
+        (function() {
+            console.log('[QUICKFIX] Patching file display...');
+            
+            // Store original function
+            const originalProcessFileSelection = window.processFileSelection;
+            
+            // Monitor for file selections
+            let checkInterval = setInterval(function() {
+                if (window.handleWebOpenFile) {
+                    clearInterval(checkInterval);
+                    
+                    // Patch the function
+                    const original = window.handleWebOpenFile;
+                    window.handleWebOpenFile = function() {
+                        console.log('[QUICKFIX] File picker triggered');
+                        
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = '.txt,.pdf,.doc,.docx,.js,.html,.css,.py,.json,.md,.csv,.xml,.odt';
+                        
+                        input.onchange = function(e) {
+                            const file = e.target.files[0];
+                            if (file) {
+                                console.log('[QUICKFIX] File selected:', file.name);
+                                
+                                // Add to container immediately
+                                const filebox = document.getElementById('filebox');
+                                if (filebox) {
+                                    // Remove placeholder
+                                    const placeholder = filebox.querySelector('.file-message');
+                                    if (placeholder) placeholder.remove();
+                                    
+                                    // Add file item
+                                    const fileItem = document.createElement('div');
+                                    fileItem.className = 'file-item';
+                                    fileItem.style.cssText = 'padding: 8px 12px; margin: 4px 0; background: #f5f5f5; border-radius: 4px; cursor: pointer; display: flex; align-items: center;';
+                                    fileItem.onmouseover = function() { this.style.background = '#e0e0e0'; };
+                                    fileItem.onmouseout = function() { this.style.background = '#f5f5f5'; };
+                                    
+                                    const ext = file.name.split('.').pop().toLowerCase();
+                                    const icons = {
+                                        pdf: '📄', doc: '📝', docx: '📝', txt: '📃',
+                                        js: '📜', html: '🌐', css: '🎨', py: '🐍',
+                                        json: '📊', md: '📖', csv: '📊', xml: '📋', odt: '📝'
+                                    };
+                                    
+                                    fileItem.innerHTML = '<span style="margin-right: 8px; font-size: 18px;">' + 
+                                        (icons[ext] || '📄') + '</span><span>' + file.name + '</span>';
+                                    
+                                    fileItem.onclick = function() {
+                                        console.log('[QUICKFIX] Loading file:', file.name);
+                                        // Trigger file display
+                                        if (window.displayDocumentFromBackend) {
+                                            window.displayDocumentFromBackend(file.name);
+                                        }
+                                    };
+                                    
+                                    filebox.appendChild(fileItem);
+                                    console.log('[QUICKFIX] File added to container');
+                                }
+                            }
+                        };
+                        
+                        input.click();
+                    };
+                    
+                    console.log('[QUICKFIX] File display fix applied');
+                }
+            }, 100);
+        })();
+        
+        // Functions have already been assigned directly to window object
+        console.log('[COMPLETE] All functions defined and assigned to window');
+        console.log('[COMPLETE] displayDocumentFromBackend:', typeof window.displayDocumentFromBackend);
+        console.log('[COMPLETE] handleFileClick:', typeof window.handleFileClick);
+        console.log('[COMPLETE] Functions ready for use!');
+        
+        // Final verification - run after a small delay to ensure everything is ready
+        setTimeout(function() {
+            console.log('[FINAL CHECK] Script fully loaded');
+            console.log('[FINAL CHECK] displayDocumentFromBackend:', typeof window.displayDocumentFromBackend);
+            window.showDebug('[FINAL CHECK] displayDocumentFromBackend: ' + (typeof window.displayDocumentFromBackend));
+            
+            // If function is available, show success
+            if (typeof window.displayDocumentFromBackend === 'function') {
+                window.showDebug('[SUCCESS] All functions loaded and ready!');
+                console.log('[SUCCESS] All document functions are available');
+            } else {
+                window.showDebug('[ERROR] Functions still not available after script load!');
+                console.error('[ERROR] Critical functions missing after full script execution');
+            }
+        }, 100);
+    </script>
+</body>
+</html>

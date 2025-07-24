@@ -1,0 +1,121 @@
+\keert\Downloads\durga ai chatbot\static2.0\static\style.css */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Mukta Malar', 'Baloo Thambi 2', 'Catamaran', sans-serif;
+    background: #f9f9f9;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 20px;
+    background-color: #6200ea;
+    color: white;
+    padding: 1rem;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.input-section {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+input[type="text"] {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 25px;
+    font-size: 16px;
+}
+
+input {
+    width: 100%;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.buttons {
+    display: flex;
+    gap: 1rem;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+}
+
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s;
+}
+
+button#runButton {
+    background-color: #6200ea;
+    color: white;
+}
+
+button#stopButton {
+    background-color: #e53935;
+    color: white;
+}
+
+.primary {
+    background: linear-gradient(to right, #6c72ef, #ff6b8b);
+    color: white;
+}
+
+.stop {
+    background: #ff6b8b;
+    color: white;
+}
+
+.browser-view {
+    width: 100%;
+    height: 600px;
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+#browserStream {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+#result {
+    margin-top: 1rem;
+    padding: 0.5rem;
+    background: #f1f1f1;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.result-section {
+    padding: 15px;
+    background: white;
+    border-radius: 10px;
+    min-height: 100px;
+}

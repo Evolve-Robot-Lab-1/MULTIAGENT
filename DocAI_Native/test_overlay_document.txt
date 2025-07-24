@@ -1,0 +1,21 @@
+LibreOffice Overlay Test Document
+=================================
+
+This is a test document to verify the overlay positioning system.
+
+If you can see this in LibreOffice within the DocAI Native window,
+then the overlay system is working correctly!
+
+Test Features:
+- Window positioning
+- Decoration removal
+- Position synchronization
+- View mode switching
+
+The LibreOffice window should:
+1. Appear without title bar and borders
+2. Stay positioned within the document viewer area
+3. Move with the main window
+4. Resize with the container
+
+Congratulations! The overlay system is functional.

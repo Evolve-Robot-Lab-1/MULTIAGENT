@@ -1,0 +1,35 @@
+{
+  "module": "test_05_wm_hints_lock",
+  "start_time": "2025-07-24T12:15:31.079695",
+  "status": "running",
+  "attempts": [
+    {
+      "vcl_plugin": "gtk3",
+      "attempt": 1,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:15:34.199862"
+    },
+    {
+      "vcl_plugin": "gtk3",
+      "attempt": 2,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:15:38.294848"
+    },
+    {
+      "vcl_plugin": "gtk3",
+      "attempt": 3,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:15:44.383768"
+    }
+  ],
+  "end_time": "2025-07-24T12:15:45.081933"
+}

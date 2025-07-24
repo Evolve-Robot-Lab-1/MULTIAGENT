@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>துர்கா AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+Thambi+2:wght@400;500&family=Catamaran:wght@400;500&family=Mukta+Malar:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="stylenew.css">
+    <link rel="icon" type="image/png" href="Durga.png">
+</head>
+<body>
+    <header>
+        <div class="branding">
+            <img src="Durga.png" alt="AI Logo" class="logo">
+            <h1>துர்கா AI</h1>
+        </div>
+        <div class="menu-container">
+            <div class="dropdown">
+                <button class="menu-button">Files</button>
+                <div class="dropdown-content">
+                    <a href="#" class="dropdown-item" onclick="handleUploadFile()">Upload File</a>
+                    <a href="#" class="dropdown-item" onclick="handleOpenFile()">Open File</a>
+                    <a href="#" class="dropdown-item" onclick="handleOpenFolder()">Open Folder</a>
+                    <a href="#" class="dropdown-item" onclick="handleSaveAs()">Save As</a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <button class="menu-button">Agents <span id="agent-status-indicator"></span></button>
+                <div class="dropdown-content">
+                    <a href="#" class="dropdown-item" onclick="handleDocumentAgent()">Document Agent <span id="docai-agent-status">✗</span></a>
+                    <a href="#" class="dropdown-item" onclick="handleBrowserAgent()">Browser Agent <span id="browser-agent-status">✗</span></a>
+                    <a href="#" class="dropdown-item" onclick="handleSocialAgent()">Social Agent <span id="social-agent-status">✗</span></a>
+                    <a href="#" class="dropdown-item" onclick="handleWebAgent()">Web Agent <span id="web-agent-status">✗</span></a>
+                    <a href="#" class="dropdown-item" onclick="handleServiceAgent()">Service Agent <span id="service-agent-status">✗</span></a>
+                    <a href="#" class="dropdown-item" onclick="handleTwitterAgent()">Twitter Agent <span id="twitter-agent-status">✗</span></a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <button class="menu-button">Language</button>
+                <div class="dropdown-content">
+                    <a href="#" class="dropdown-item" onclick="changeLanguage('tamil')">தமிழ்</a>
+                    <a href="#" class="dropdown-item" onclick="changeLanguage('english')">English</a>
+                </div>
+            </div>
+        </div>
+    </header>
+    <div class="main-container">
+        <!-- Left File Container - Same structure as chatbot -->
+        <div class="left-section file-container">
+            <div id="filebox">
+                <!-- File list will appear here -->
+                <div class="file-message">📁 Files will appear here</div>
+            </div>
+            <div class="button-container">
+                <button id="refreshFilesBtn" class="clear-chat-button">🔄 Refresh</button>
+            </div>
+            <div class="footer-like">
+            
+            </div>
+        </div>
+        
+        <div class="chat-container">
+            <!-- Center content will go here -->
+        </div>
+        <div class="left-section">
+            <div id="chatbox">
+                <!-- Placeholder for chat messages -->
+            </div>
+            <div class="button-container">
+                <button id="clearChatBtn" class="clear-chat-button">Clear Chat</button>
+            </div>
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <input type="text" id="userInput" class="chat-input" placeholder="உங்கள் கேள்வியை உள்ளிடவும்..." autofocus>
+                    <button id="micBtn" class="mic-button" title="பதிவு செய்ய தட்டவும்">
+                        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle class="mic-border" cx="12" cy="12" r="11" stroke="#333" stroke-width="2" fill="white"/>
+                            <circle class="mic-record-circle" cx="12" cy="12" r="9" fill="#2196F3"/>
+                            <circle class="mic-center" cx="12" cy="12" r="3" fill="#333"/>
+                        </svg>
+                    </button>
+                </div>
+                <button id="sendBtn" class="send-button">அனுப்பவும்</button>
+                <button id="stopBtn" class="stop-button" style="display: none;">
+                    <svg class="stop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="6" y="6" width="12" height="12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="footer-like">
+            
+            </div>
+        </div>
+    </div>  
+    <div id="loading" class="loading-spinner" style="display: none;"></div>
+    <script src="app.js"></script>
+    <script src="enhanced-viewer.js"></script>
+    <script src="viewer-mode.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropdownButtons = document.querySelectorAll('.menu-button');
+            
+            dropdownButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Close all other dropdowns
+                    dropdownButtons.forEach(otherButton => {
+                        if (otherButton !== button) {
+                            otherButton.nextElementSibling.classList.remove('show');
+                        }
+                    });
+                    
+                    // Toggle current dropdown
+                    const dropdownContent = this.nextElementSibling;
+                    dropdownContent.classList.toggle('show');
+                });
+            });
+            
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.dropdown')) {
+                    const dropdowns = document.querySelectorAll('.dropdown-content');
+                    dropdowns.forEach(dropdown => {
+                        dropdown.classList.remove('show');
+                    });
+                }
+            });
+            
+            // Prevent dropdown from closing when clicking inside it
+            const dropdownContents = document.querySelectorAll('.dropdown-content');
+            dropdownContents.forEach(content => {
+                content.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+            });
+
+            // Add click handlers for dropdown items
+            document.querySelectorAll('.dropdown-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Get the onclick handler and execute it
+                    const onclickHandler = this.getAttribute('onclick');
+                    if (onclickHandler) {
+                        try {
+                            // Execute the onclick handler
+                            eval(onclickHandler);
+                        } catch (error) {
+                            console.error('Error executing onclick handler:', error);
+                        }
+                    }
+                    
+                    // Close the dropdown after clicking an item
+                    this.closest('.dropdown-content').classList.remove('show');
+                });
+            });
+            
+            // Add event listener for refresh button to test functionality
+            const refreshBtn = document.getElementById('refreshFilesBtn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', function() {
+                    refreshFiles(); // Just call the refresh function instead of adding test files
+                });
+            }
+        });
+
+        // File container functions - integrated with existing tools
+        function refreshFiles() {
+            console.log('Refreshing file list...');
+            // Clear and refresh the file display
+            const filebox = document.getElementById('filebox');
+            if (filebox.children.length === 0) {
+                filebox.innerHTML = '<div class="file-message">📁 Files will appear here</div>';
+            }
+        }
+        
+        // Simple file structure
+        let fileList = [];
+        
+        // File upload integration with existing tools
+        function addFileToContainer(fileName, fileExt, fileContent = null) {
+            const filebox = document.getElementById('filebox');
+            
+            // Clear the "Files will appear here" message if it exists
+            const placeholder = filebox.querySelector('.file-message');
+            if (placeholder && placeholder.textContent.includes('Files will appear here')) {
+                placeholder.remove();
+            }
+            
+            // Add file to list
+            fileList.push({
+                name: fileName,
+                ext: fileExt,
+                content: fileContent,
+                type: 'file'
+            });
+            
+            // Create file item with ">" icon
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.innerHTML = `
+                <span class="expand-icon">&gt;</span>
+                <span class="file-icon">${getFileIcon(fileExt)}</span>
+                <span class="file-name">${fileName}</span>
+            `;
+            
+            // Add click handler
+            fileItem.addEventListener('click', function() {
+                handleFileClick(fileName, fileContent);
+            });
+            
+            filebox.appendChild(fileItem);
+        }
+        
+        function addFolderToContainer(folderName) {
+            const filebox = document.getElementById('filebox');
+            
+            // Clear the "Files will appear here" message if it exists
+            const placeholder = filebox.querySelector('.file-message');
+            if (placeholder && placeholder.textContent.includes('Files will appear here')) {
+                placeholder.remove();
+            }
+            
+            // Create folder item with ">" icon
+            const folderItem = document.createElement('div');
+            folderItem.className = 'file-item folder-item';
+            folderItem.innerHTML = `
+                <span class="expand-icon">&gt;</span>
+                <span class="file-icon">📁</span>
+                <span class="file-name">${folderName}</span>
+            `;
+            
+            // Add expand functionality
+            folderItem.addEventListener('click', function() {
+                this.classList.toggle('expanded');
+                const icon = this.querySelector('.expand-icon');
+                if (this.classList.contains('expanded')) {
+                    icon.style.transform = 'rotate(90deg)';
+                } else {
+                    icon.style.transform = 'rotate(0deg)';
+                }
+            });
+            
+            filebox.appendChild(folderItem);
+        }
+        
+        function getFileExtension(fileName) {
+            return fileName.split('.').pop().toLowerCase();
+        }
+        
+        function getFileIcon(ext) {
+            const icons = {
+                'js': '🟨',
+                'html': '🌐',
+                'css': '🎨',
+                'py': '🐍',
+                'json': '📋',
+                'md': '📝',
+                'txt': '📄',
+                'pdf': '📕',
+                'doc': '📘',
+                'docx': '📘',
+                'jpg': '🖼️',
+                'jpeg': '🖼️',
+                'png': '🖼️',
+                'gif': '🖼️',
+                'zip': '📦',
+                'csv': '📊',
+                'xml': '📰'
+            };
+            return icons[ext] || '📄';
+        }
+        
+        function getFileSize(content) {
+            if (!content) return '';
+            const size = new Blob([content]).size;
+            if (size < 1024) return `${size}B`;
+            if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)}KB`;
+            return `${(size / (1024 * 1024)).toFixed(1)}MB`;
+        }
+        
+        function handleFileClick(fileName, content) {
+            console.log('File clicked:', fileName);
+            // Check if it's a document file that needs backend processing
+            const fileExt = getFileExtension(fileName);
+            if (['doc', 'docx', 'pdf'].includes(fileExt)) {
+                // Check if viewer manager is available and use it
+                if (window.viewerManager) {
+                    console.log('Using viewer manager for document:', fileName);
+                    viewerManager.loadDocument(fileName);
+                } else {
+                    // Fallback to original implementation
+                    console.log('Viewer manager not available, using default viewer');
+                    displayDocumentFromBackend(fileName);
+                }
+            } else {
+                // Display local content for other files
+                displayFileInCenter(fileName, content);
+            }
+        }
+        
+        async function displayDocumentFromBackend(fileName) {
+            const chatContainer = document.querySelector('.chat-container');
+            if (!chatContainer) return;
+            
+            // Show loading state
+            chatContainer.innerHTML = `
+                <div class="file-viewer">
+                    <div class="file-viewer-header">
+                        <h3>📄 ${fileName}</h3>
+                        <button onclick="closeFileViewer()" class="close-btn">✕</button>
+                    </div>
+                    <div class="file-viewer-content" style="text-align: center; padding: 50px;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 48px; color: #666;"></i>
+                        <p>Loading document...</p>
+                    </div>
+                </div>
+            `;
+            
+            try {
+                // Fetch document HTML from backend
+                const response = await fetch(`http://localhost:8090/view_document/${encodeURIComponent(fileName)}`);
+                
+                if (response.ok) {
+                    const contentType = response.headers.get('content-type');
+                    
+                    if (contentType && contentType.includes('application/json')) {
+                        // Handle JSON response from backend
+                        const data = await response.json();
+                        
+                        if (data.success && data.pages && data.pages.length > 0) {
+                            // Use the exact structure from original viewer
+                            chatContainer.innerHTML = `
+                                <div class="word-viewer">
+                                    <div class="word-toolbar">
+                                        <div class="word-toolbar-group">
+                                            <span>${fileName}</span>
+                                            <div class="viewer-mode-toggle" id="viewerModeToggle" style="display: inline-block;">
+                                                <button class="btn btn-sm btn-outline-secondary" id="toggleViewerBtn" onclick="toggleViewerMode()" title="Toggle Viewer Mode">
+                                                    <i class="fas fa-exchange-alt"></i>
+                                                    <span id="viewerModeText">HTML View</span>
+                                                </button>
+                                            </div>
+                                            <button class="edit-button" onclick="enableEditMode('${fileName}')" title="Edit Document">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </button>
+                                            <div class="close-document" onclick="closeFileViewer()" title="Close">
+                                                <i class="fas fa-times"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="word-viewer-container">
+                                        <div class="word-content">
+                                            ${data.pages.map((page, index) => `
+                                                <div class="word-page">
+                                                    ${page}
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            throw new Error(data.error || 'Failed to load document');
+                        }
+                    } else {
+                        // Handle HTML response
+                        const html = await response.text();
+                        chatContainer.innerHTML = `
+                            <div class="file-viewer">
+                                <div class="file-viewer-header">
+                                    <h3>📄 ${fileName}</h3>
+                                    <button onclick="closeFileViewer()" class="close-btn">✕</button>
+                                </div>
+                                <div class="file-viewer-content">
+                                    ${html}
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    throw new Error('Failed to load document');
+                }
+            } catch (error) {
+                console.error('Error loading document:', error);
+                chatContainer.innerHTML = `
+                    <div class="file-viewer">
+                        <div class="file-viewer-header">
+                            <h3>📄 ${fileName}</h3>
+                            <button onclick="closeFileViewer()" class="close-btn">✕</button>
+                        </div>
+                        <div class="file-viewer-content" style="text-align: center; padding: 50px; color: #e74c3c;">
+                            <i class="fas fa-exclamation-circle" style="font-size: 48px;"></i>
+                            <p>Error loading document. Please ensure the backend is running.</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        function displayFileInCenter(fileName, content) {
+            const chatContainer = document.querySelector('.chat-container');
+            if (chatContainer) {
+                chatContainer.innerHTML = `
+                    <div class="file-viewer">
+                        <div class="file-viewer-header">
+                            <h3>📄 ${fileName}</h3>
+                            <button onclick="closeFileViewer()" class="close-btn">✕</button>
+                        </div>
+                        <div class="file-viewer-content">
+                            <pre>${content || 'File content will be loaded here...'}</pre>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        function closeFileViewer() {
+            const chatContainer = document.querySelector('.chat-container');
+            if (chatContainer) {
+                chatContainer.innerHTML = '<!-- Center content will go here -->';
+            }
+        }
+        
+        // Document context for edit functionality
+        window.documentContext = {
+            currentDocument: null,
+            isEditing: false,
+            selectedContent: null
+        };
+        
+        // Enable edit mode for document
+        function enableEditMode(fileName) {
+            // Check if in native viewer mode
+            if (window.viewerManager && viewerManager.currentMode === 'native') {
+                // Show notification to switch to HTML mode
+                if (confirm('Edit mode requires HTML view. Switch to HTML view now?')) {
+                    viewerManager.currentMode = 'html';
+                    localStorage.setItem('viewerMode', 'html');
+                    viewerManager.updateButtonText();
+                    viewerManager.loadDocument(fileName);
+                    
+                    // Re-enable edit mode after document loads
+                    setTimeout(() => {
+                        enableEditMode(fileName);
+                    }, 1000);
+                }
+                return;
+            }
+            
+            window.documentContext.currentDocument = fileName;
+            window.documentContext.isEditing = true;
+            
+            // Add selection event listener
+            document.addEventListener('mouseup', handleTextSelection);
+            
+            // Add visual indicator
+            const editButton = document.querySelector('.edit-button');
+            if (editButton) {
+                editButton.innerHTML = '<i class="fas fa-check"></i> Editing';
+                editButton.style.background = '#4CAF50';
+                editButton.style.color = 'white';
+            }
+            
+            // Make document selectable
+            const wordContent = document.querySelector('.word-content');
+            if (wordContent) {
+                wordContent.style.userSelect = 'text';
+                wordContent.style.cursor = 'text';
+            }
+        }
+        
+        // Handle text selection
+        function handleTextSelection(e) {
+            const selection = window.getSelection();
+            const selectedText = selection.toString().trim();
+            
+            if (selectedText && window.documentContext.isEditing) {
+                window.documentContext.selectedContent = {
+                    text: selectedText,
+                    range: selection.getRangeAt(0)
+                };
+                
+                // Show context menu
+                showEditContextMenu(e.pageX, e.pageY, selectedText);
+            }
+        }
+        
+        // Show context menu for selected text
+        function showEditContextMenu(x, y, selectedText) {
+            // Remove existing menu
+            const existingMenu = document.querySelector('.edit-context-menu');
+            if (existingMenu) {
+                existingMenu.remove();
+            }
+            
+            // Create context menu
+            const menu = document.createElement('div');
+            menu.className = 'edit-context-menu';
+            menu.innerHTML = `
+                <div class="menu-item" onclick="askAboutSelection()" style="padding: 8px 16px; cursor: pointer; white-space: nowrap; color: #333;">
+                    <i class="fas fa-question-circle"></i> Ask about this
+                </div>
+                <div class="menu-item" onclick="editSelection()" style="padding: 8px 16px; cursor: pointer; white-space: nowrap; color: #333;">
+                    <i class="fas fa-edit"></i> Edit this
+                </div>
+                <style>
+                    .menu-item:hover {
+                        background-color: #f0f0f0;
+                    }
+                </style>
+            `;
+            menu.style.cssText = `
+                position: absolute;
+                left: ${x}px;
+                top: ${y}px;
+                background: white;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                z-index: 10000;
+                padding: 8px 0;
+            `;
+            
+            document.body.appendChild(menu);
+            
+            // Remove menu on click outside
+            setTimeout(() => {
+                document.addEventListener('click', function removeMenu(e) {
+                    if (!menu.contains(e.target)) {
+                        menu.remove();
+                        document.removeEventListener('click', removeMenu);
+                    }
+                });
+            }, 100);
+        }
+        
+        // Send selected text to chatbot for questions
+        function askAboutSelection() {
+            const selectedText = window.documentContext?.selectedContent?.text;
+            if (!selectedText) return;
+            
+            const chatInput = document.getElementById('userInput');
+            if (chatInput) {
+                chatInput.value = `What does this mean: "${selectedText}"`;
+                chatInput.focus();
+                
+                // Optionally trigger send
+                const sendBtn = document.getElementById('sendBtn');
+                if (sendBtn) {
+                    sendBtn.click();
+                }
+            }
+            
+            // Remove context menu
+            const menu = document.querySelector('.edit-context-menu');
+            if (menu) menu.remove();
+        }
+        
+        // Send selected text to chatbot for editing
+        function editSelection() {
+            const selectedText = window.documentContext?.selectedContent?.text;
+            if (!selectedText) return;
+            
+            const chatInput = document.getElementById('userInput');
+            if (chatInput) {
+                chatInput.value = `Edit this text: "${selectedText}"`;
+                chatInput.focus();
+            }
+            
+            // Remove context menu
+            const menu = document.querySelector('.edit-context-menu');
+            if (menu) menu.remove();
+        }
+        
+        // Enhanced file upload functions that integrate with file container
+        function handleUploadFile() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true;
+            input.accept = '.pdf,.txt,.doc,.docx';
+            input.onchange = async function(e) {
+                const files = Array.from(e.target.files);
+                const t = translations[localStorage.getItem('language') || 'tamil'];
+                
+                for (const file of files) {
+                    // Create FormData for RAG upload
+                    const formData = new FormData();
+                    formData.append('document', file);
+                    
+                    try {
+                        // Upload to RAG endpoint
+                        const response = await fetch('http://localhost:8090/rag/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        if (response.ok) {
+                            const result = await response.json();
+                            // Use the filename from response if available, otherwise use original
+                            const actualFileName = result.filename || file.name;
+                            const fileExt = getFileExtension(actualFileName);
+                            
+                            // Add to file container with actual filename
+                            addFileToContainer(actualFileName, fileExt, null);
+                            
+                            // Add to chat with success message
+                            const message = document.createElement('div');
+                            message.className = 'message bot-message';
+                            message.innerHTML = `<img src="Durga.png" alt="AI">${t.uploadedFile}${file.name}`;
+                            const chatbox = document.getElementById('chatbox');
+                            if (chatbox) {
+                                chatbox.appendChild(message);
+                                chatbox.scrollTop = chatbox.scrollHeight;
+                            }
+                        } else {
+                            console.error('Upload failed:', await response.text());
+                            alert('Failed to upload: ' + file.name);
+                        }
+                    } catch (error) {
+                        console.error('Upload error:', error);
+                        // Fallback to local file handling
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            const fileContent = event.target.result;
+                            const fileExt = getFileExtension(file.name);
+                            addFileToContainer(file.name, fileExt, fileContent);
+                        };
+                        reader.readAsText(file);
+                    }
+                }
+            };
+            input.click();
+        }
+        
+        function handleOpenFile() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.txt,.pdf,.doc,.docx,.js,.html,.css,.py,.json,.md,.csv,.xml';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const t = translations[localStorage.getItem('language') || 'tamil'];
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(event) {
+                        const fileContent = event.target.result;
+                        const fileExt = getFileExtension(file.name);
+                        
+                        // Add to file container
+                        addFileToContainer(file.name, fileExt, fileContent);
+                        
+                        // Add to chat (existing functionality)
+                        const message = document.createElement('div');
+                        message.className = 'message bot-message';
+                        message.innerHTML = `<img src="Durga.png" alt="AI">${t.openedFile}${file.name}`;
+                        const chatbox = document.getElementById('chatbox');
+                        if (chatbox) {
+                            chatbox.appendChild(message);
+                            chatbox.scrollTop = chatbox.scrollHeight;
+                        }
+                    };
+                    
+                    // Read file based on type
+                    if (file.type.startsWith('text/') || file.name.endsWith('.js') || file.name.endsWith('.html') || file.name.endsWith('.css') || file.name.endsWith('.json') || file.name.endsWith('.md')) {
+                        reader.readAsText(file);
+                    } else {
+                        reader.readAsDataURL(file);
+                    }
+                }
+            };
+            input.click();
+        }
+        
+        function handleOpenFolder() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.webkitdirectory = true;
+            input.onchange = function(e) {
+                const files = Array.from(e.target.files);
+                const t = translations[localStorage.getItem('language') || 'tamil'];
+                
+                // Add to chat (existing functionality)
+                const message = document.createElement('div');
+                message.className = 'message bot-message';
+                message.innerHTML = `<img src="Durga.png" alt="AI">${t.openedFolder}${files.length}`;
+                const chatbox = document.getElementById('chatbox');
+                if (chatbox) {
+                    chatbox.appendChild(message);
+                    chatbox.scrollTop = chatbox.scrollHeight;
+                }
+                
+                // Add files to file container
+                files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const fileContent = event.target.result;
+                        const fileExt = getFileExtension(file.name);
+                        const relativePath = file.webkitRelativePath || file.name;
+                        
+                        // Add to file container
+                        addFileToContainer(relativePath, fileExt, fileContent);
+                    };
+                    
+                    // Read file based on type
+                    if (file.type.startsWith('text/') || file.name.endsWith('.js') || file.name.endsWith('.html') || file.name.endsWith('.css') || file.name.endsWith('.json') || file.name.endsWith('.md')) {
+                        reader.readAsText(file);
+                    } else {
+                        reader.readAsDataURL(file);
+                    }
+                });
+            };
+            input.click();
+        }
+        
+        // Create file and folder functionality
+        function createNewFile() {
+            const fileName = prompt('Enter file name (with extension):');
+            if (fileName && fileName.trim()) {
+                const fileExt = getFileExtension(fileName);
+                const defaultContent = getDefaultFileContent(fileExt);
+                addFileToContainer(fileName, fileExt, defaultContent);
+                
+                // Also add to chat
+                const t = translations[localStorage.getItem('language') || 'tamil'];
+                const message = document.createElement('div');
+                message.className = 'message bot-message';
+                message.innerHTML = `<img src="Durga.png" alt="AI">Created file: ${fileName}`;
+                const chatbox = document.getElementById('chatbox');
+                if (chatbox) {
+                    chatbox.appendChild(message);
+                    chatbox.scrollTop = chatbox.scrollHeight;
+                }
+            }
+            hideCreateOptions();
+        }
+        
+        function createNewFolder() {
+            const folderName = prompt('Enter folder name:');
+            if (folderName && folderName.trim()) {
+                // Add folder to structure
+                if (!fileStructure[folderName]) {
+                    fileStructure[folderName] = {
+                        type: 'folder',
+                        children: {},
+                        expanded: false
+                    };
+                    rebuildFileTree();
+                    
+                    // Also add to chat
+                    const message = document.createElement('div');
+                    message.className = 'message bot-message';
+                    message.innerHTML = `<img src="Durga.png" alt="AI">Created folder: ${folderName}`;
+                    const chatbox = document.getElementById('chatbox');
+                    if (chatbox) {
+                        chatbox.appendChild(message);
+                        chatbox.scrollTop = chatbox.scrollHeight;
+                    }
+                }
+            }
+            hideCreateOptions();
+        }
+        
+        function getDefaultFileContent(ext) {
+            const templates = {
+                'js': '// JavaScript file\nconsole.log("Hello World");',
+                'html': '<!DOCTYPE html>\n<html>\n<head>\n    <title>New Page</title>\n</head>\n<body>\n    <h1>Hello World</h1>\n</body>\n</html>',
+                'css': '/* CSS file */\nbody {\n    font-family: Arial, sans-serif;\n    margin: 0;\n    padding: 20px;\n}',
+                'py': '# Python file\nprint("Hello World")',
+                'json': '{\n    "name": "example",\n    "value": "Hello World"\n}',
+                'md': '# New Document\n\nThis is a new markdown document.',
+                'txt': 'This is a new text file.'
+            };
+            return templates[ext] || 'New file content';
+        }
+        
+        function showCreateOptions() {
+            const options = document.querySelector('.create-options');
+            options.classList.add('show');
+        }
+        
+        function hideCreateOptions() {
+            const options = document.querySelector('.create-options');
+            options.classList.remove('show');
+        }
+        
+        // Add event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const refreshBtn = document.getElementById('refreshFilesBtn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', refreshFiles);
+            }
+            
+            const createBtn = document.getElementById('createBtn');
+            if (createBtn) {
+                createBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const options = document.querySelector('.create-options');
+                    options.classList.toggle('show');
+                });
+            }
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.create-dropdown')) {
+                    hideCreateOptions();
+                }
+            });
+        });
+
+        function handleSaveAs() {
+            const chatContent = document.getElementById('chatbox').innerText;
+            const blob = new Blob([chatContent], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'chat_history.txt';
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            const t = translations[localStorage.getItem('language') || 'tamil'];
+            const message = document.createElement('div');
+            message.className = 'message bot-message';
+            message.innerHTML = `<img src="Durga.png" alt="AI">${t.chatSaved}`;
+            document.getElementById('chatbox').appendChild(message);
+        }
+
+        // Agent handling functions
+        function handleBrowserAgent() {
+            const chatContainer = document.querySelector('.chat-container');
+            if (chatContainer) {
+                chatContainer.innerHTML = `
+                    <div class="browser-agent-container">
+                        <div class="browser-agent-header">
+                            <h3>🌐 Browser Agent</h3>
+                            <button onclick="closeBrowserAgent()" class="close-btn">✕</button>
+                        </div>
+                        <div class="browser-agent-content">
+                            <iframe src="http://127.0.0.1:7788" 
+                                    style="width: 100%; height: 100%; border: none; border-radius: 8px;"
+                                    id="browserAgentFrame"
+                                    frameborder="0">
+                            </iframe>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        function closeBrowserAgent() {
+            const chatContainer = document.querySelector('.chat-container');
+            if (chatContainer) {
+                chatContainer.innerHTML = '<!-- Center content will go here -->';
+            }
+        }
+
+        // Placeholder for automation functions
+        async function startAutomation(action) {
+            const statusLog = document.getElementById('statusLog');
+            const results = document.getElementById('automationResults');
+            
+            try {
+                statusLog.innerHTML += `<div>Starting ${action}...</div>`;
+                
+                // Here we would call your actual automation functions
+                // For example:
+                // if (action === 'navigate') {
+                //     await yourAutomationModule.navigateToUrl(url);
+                // }
+                
+                statusLog.innerHTML += `<div>${action} completed successfully</div>`;
+            } catch (error) {
+                statusLog.innerHTML += `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        function handleDocumentAgent() {
+            const t = translations[localStorage.getItem('language') || 'tamil'];
+            const message = document.createElement('div');
+            message.className = 'message bot-message agent-message';
+            message.innerHTML = `
+                <img src="Durga.png" alt="AI">
+                ${t.documentAgentMsg}
+            `;
+            document.getElementById('chatbox').appendChild(message);
+            document.getElementById('userInput').placeholder = t.documentAgent;
+        }
+
+        function handleTwitterAgent() {
+            const t = translations[localStorage.getItem('language') || 'tamil'];
+            const message = document.createElement('div');
+            message.className = 'message bot-message agent-message';
+            message.innerHTML = `
+                <img src="Durga.png" alt="AI">
+                ${t.twitterAgentMsg}
+            `;
+            document.getElementById('chatbox').appendChild(message);
+            document.getElementById('userInput').placeholder = t.twitterAgent;
+        }
+
+        // First, add a function to create and show the default welcome message
+        function showDefaultMode() {
+            const t = translations[localStorage.getItem('language') || 'tamil'];
+            const chatbox = document.getElementById('chatbox');
+            
+            // Only show welcome message if chatbox is empty or only contains empty message div
+            if (!chatbox.children.length || (chatbox.children.length === 1 && !chatbox.children[0].textContent.trim())) {
+                const message = document.createElement('div');
+                message.className = 'message bot-message welcome-message';
+                message.innerHTML = `
+                    <img src="Durga.png" alt="AI">
+                    ${t.welcomeMessage}
+                `;
+                chatbox.innerHTML = ''; // Clear any empty message divs
+                chatbox.appendChild(message);
+            }
+            
+            // Reset the input placeholder to default
+            document.getElementById('userInput').placeholder = t.inputPlaceholder;
+        }
+
+        // Add clear chat functionality
+        function handleClearChat() {
+            const chatbox = document.getElementById('chatbox');
+            chatbox.innerHTML = ''; // Clear all messages
+            showDefaultMode(); // Show welcome message after clearing
+        }
+
+        // Update the DOMContentLoaded event listener
+        document.addEventListener('DOMContentLoaded', function() {
+            // Show default welcome message only on initial load
+            showDefaultMode();
+            
+            // Add click handler for clear chat button
+            document.getElementById('clearChatBtn').addEventListener('click', handleClearChat);
+            
+            // Load saved language preference
+            const savedLang = localStorage.getItem('language') || 'tamil';
+            changeLanguage(savedLang);
+        });
+
+        // Language translations
+        const translations = {
+            tamil: {
+                title: 'துர்கா AI',
+                files: 'கோப்புகள்',
+                agents: 'முகவர்கள்',
+                language: 'மொழி',
+                uploadFile: 'கோப்பை பதிவேற்றவும்',
+                openFile: 'கோப்பைத் திறக்கவும்',
+                openFolder: 'கோப்புறையைத் திறக்கவும்',
+                saveAs: 'இவ்வாறு சேமிக்கவும்',
+                browserAgent: 'உலாவி முகவரிடம் கேள்வி கேளுங்கள்...',
+                documentAgent: 'ஆவண முகவரிடம் கேள்வி கேளுங்கள்...',
+                twitterAgent: 'ட்விட்டர் முகவரிடம் கேள்வி கேளுங்கள்...',
+                clearChat: 'அரட்டையை அழிக்கவும்',
+                inputPlaceholder: 'உங்கள் கேள்வியை உள்ளிடவும்...',
+                send: 'அனுப்பவும்',
+                micTitle: 'பதிவு செய்ய தட்டவும்',
+                browserAgentMsg: 'உலாவி முகவர் செயல்படுத்தப்பட்டது. நான் எவ்வாறு உதவ முடியும்?',
+                documentAgentMsg: 'ஆவண முகவர் செயல்படுத்தப்பட்டது. ஆவணங்களை பகுப்பாய்வு செய்ய நான் உதவுவேன்.',
+                twitterAgentMsg: 'ட்விட்டர் முகவர் செயல்படுத்தப்பட்டது. ட்விட்டர் தரவுகளை பகுப்பாய்வு செய்ய நான் உதவுவேன்.',
+                uploadedFile: 'பதிவேற்றிய கோப்பு: ',
+                openedFile: 'திறந்த கோப்பு: ',
+                openedFolder: 'திறந்த கோப்புறையில் உள்ள கோப்புகள்: ',
+                welcomeMessage: 'வணக்கம்! நான் துர்கா AI, உங்களுக்கு எவ்வாறு உதவ முடியும்?',
+                uploadSuccess: 'கோப்பு வெற்றிகரமாக பதிவேற்றப்பட்டது',
+                fileOpened: 'கோப்பு வெற்றிகரமாக திறக்கப்பட்டது',
+                folderOpened: 'கோப்புறை வெற்றிகரமாக திறக்கப்பட்டது',
+                chatSaved: 'அரட்டை வரலாறு சேமிக்கப்பட்டது',
+                browserAgentName: 'உலாவி முகவர்',
+                documentAgentName: 'ஆவண முகவர்',
+                twitterAgentName: 'ட்விட்டர் முகவர்'
+            },
+            english: {
+                title: 'Durga AI',
+                files: 'Files',
+                agents: 'Agents',
+                language: 'Language',
+                uploadFile: 'Upload File',
+                openFile: 'Open File',
+                openFolder: 'Open Folder',
+                saveAs: 'Save As',
+                browserAgent: 'Ask the Browser Agent...',
+                documentAgent: 'Ask the Document Agent...',
+                twitterAgent: 'Ask the Twitter Agent...',
+                clearChat: 'Clear Chat',
+                inputPlaceholder: 'Type your question...',
+                send: 'Send',
+                micTitle: 'Click to record',
+                browserAgentMsg: 'Browser Agent activated. How can I help you browse the web?',
+                documentAgentMsg: 'Document Agent activated. I can help you analyze and work with documents.',
+                twitterAgentMsg: 'Twitter Agent activated. I can help you analyze Twitter data and trends.',
+                uploadedFile: 'Uploaded file: ',
+                openedFile: 'Opened file: ',
+                openedFolder: 'Files in opened folder: ',
+                welcomeMessage: 'Hello! I am Durga AI, how can I help you?',
+                uploadSuccess: 'File uploaded successfully',
+                fileOpened: 'File opened successfully',
+                folderOpened: 'Folder opened successfully',
+                chatSaved: 'Chat history saved',
+                browserAgentName: 'Browser Agent',
+                documentAgentName: 'Document Agent',
+                twitterAgentName: 'Twitter Agent'
+            }
+        };
+
+        function changeLanguage(lang) {
+            // Store language preference
+            localStorage.setItem('language', lang);
+            
+            // Clear and reinitialize chat with new language
+            if (typeof clearChat === 'function') {
+                clearChat();
+            }
+            
+            // Update UI elements
+            const t = translations[lang];
+            
+            // Update title
+            document.title = t.title;
+            document.querySelector('.branding h1').textContent = t.title;
+            
+            // Update menu buttons - Fix the button text comparison
+            const menuButtons = document.querySelectorAll('.menu-button');
+            menuButtons.forEach(button => {
+                // Check the button's position to determine which translation to use
+                if (button.parentElement === document.querySelector('.dropdown:nth-child(1)')) {
+                    button.textContent = t.files;
+                } else if (button.parentElement === document.querySelector('.dropdown:nth-child(2)')) {
+                    button.textContent = t.agents;
+                } else if (button.parentElement === document.querySelector('.dropdown:nth-child(3)')) {
+                    button.textContent = t.language;
+                }
+            });
+            
+            // Update dropdown items with agent names
+            document.querySelectorAll('.dropdown').forEach((dropdown, index) => {
+                const items = dropdown.querySelectorAll('.dropdown-item');
+                if (index === 0) { // Files dropdown
+                    items[0].textContent = t.uploadFile;
+                    items[1].textContent = t.openFile;
+                    items[2].textContent = t.openFolder;
+                    items[3].textContent = t.saveAs;
+                } else if (index === 1) { // Agents dropdown
+                    items[0].textContent = t.browserAgentName;
+                    items[1].textContent = t.documentAgentName;
+                    items[2].textContent = t.twitterAgentName;
+                }
+                // Language dropdown items remain unchanged
+            });
+            
+            // Update other UI elements
+            document.getElementById('clearChatBtn').textContent = t.clearChat;
+            document.getElementById('userInput').placeholder = t.inputPlaceholder;
+            document.getElementById('sendBtn').textContent = t.send;
+            document.getElementById('micBtn').title = t.micTitle;
+            
+            // Update agent messages
+            window.browserAgentMsg = t.browserAgentMsg;
+            window.documentAgentMsg = t.documentAgentMsg;
+            window.twitterAgentMsg = t.twitterAgentMsg;
+
+            // Update existing chat messages
+            const messages = document.querySelectorAll('.bot-message');
+            messages.forEach(message => {
+                const messageText = message.textContent.trim();
+                
+                // Create a new message element to preserve the image
+                const updatedMessage = document.createElement('div');
+                updatedMessage.className = 'message bot-message';
+                
+                // Check message content and update accordingly
+                if (messageText.includes('Browser Agent') || messageText.includes('உலாவி முகவர்')) {
+                    updatedMessage.innerHTML = `<img src="Durga.png" alt="AI">${t.browserAgentMsg}`;
+                    message.innerHTML = updatedMessage.innerHTML;
+                    document.getElementById('userInput').placeholder = t.browserAgent;
+                }
+                else if (messageText.includes('Document Agent') || messageText.includes('ஆவண முகவர்')) {
+                    updatedMessage.innerHTML = `<img src="Durga.png" alt="AI">${t.documentAgentMsg}`;
+                    message.innerHTML = updatedMessage.innerHTML;
+                    document.getElementById('userInput').placeholder = t.documentAgent;
+                }
+                else if (messageText.includes('Twitter Agent') || messageText.includes('ட்விட்டர் முகவர்')) {
+                    updatedMessage.innerHTML = `<img src="Durga.png" alt="AI">${t.twitterAgentMsg}`;
+                    message.innerHTML = updatedMessage.innerHTML;
+                    document.getElementById('userInput').placeholder = t.twitterAgent;
+                }
+                else if (messageText.includes('Uploaded file:') || messageText.includes('பதிவேற்றிய கோப்பு:')) {
+                    const fileName = messageText.split(':')[1].trim();
+                    updatedMessage.innerHTML = `<img src="Durga.png" alt="AI">${t.uploadedFile}${fileName}`;
+                    message.innerHTML = updatedMessage.innerHTML;
+                }
+                else if (messageText.includes('Opened file:') || messageText.includes('திறந்த கோப்பு:')) {
+                    const fileName = messageText.split(':')[1].trim();
+                    updatedMessage.innerHTML = `<img src="Durga.png" alt="AI">${t.openedFile}${fileName}`;
+                    message.innerHTML = updatedMessage.innerHTML;
+                }
+                else if (messageText.includes('Opened folder with') || messageText.includes('திறந்த கோப்புறையில் உள்ள கோப்புகள்:')) {
+                    const fileCount = messageText.match(/\d+/)[0];
+                    updatedMessage.innerHTML = `<img src="Durga.png" alt="AI">${t.openedFolder}${fileCount}`;
+                    message.innerHTML = updatedMessage.innerHTML;
+                }
+            });
+        }
+    </script>
+</body>
+</html>

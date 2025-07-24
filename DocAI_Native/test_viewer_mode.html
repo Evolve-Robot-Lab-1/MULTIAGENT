@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Viewer Mode Test</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="frontend/static/css/stylenew.css">
+    <style>
+        body { padding: 20px; }
+        .test-container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border: 1px solid #ddd; 
+        }
+        .word-toolbar { 
+            background: #f0f0f0; 
+            padding: 10px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 20px; 
+        }
+        .debug-output {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Viewer Mode Button Test</h1>
+        
+        <div class="word-toolbar">
+            <div class="word-toolbar-group">
+                <span>test-document.docx</span>
+                <div class="viewer-mode-toggle" id="viewerModeToggle" style="display: inline-block;">
+                    <button class="btn btn-sm btn-outline-secondary" id="toggleViewerBtn" onclick="toggleViewerMode()" title="Toggle Viewer Mode">
+                        <i class="fas fa-exchange-alt"></i>
+                        <span id="viewerModeText">HTML View</span>
+                    </button>
+                </div>
+                <button class="edit-button" onclick="console.log('Edit clicked')">
+                    <i class="fas fa-edit"></i> Edit
+                </button>
+            </div>
+        </div>
+        
+        <div id="content">
+            <p>Document content area</p>
+        </div>
+        
+        <div class="debug-output" id="debug">
+            <strong>Debug Output:</strong><br>
+        </div>
+    </div>
+    
+    <script src="frontend/static/js/viewer-mode.js"></script>
+    <script>
+        const debug = document.getElementById('debug');
+        
+        function log(msg) {
+            debug.innerHTML += `${new Date().toTimeString().split(' ')[0]} - ${msg}<br>`;
+            debug.scrollTop = debug.scrollHeight;
+        }
+        
+        // Check if viewer manager is initialized
+        setTimeout(() => {
+            log(`viewerManager exists: ${typeof viewerManager !== 'undefined'}`);
+            log(`toggleViewerMode exists: ${typeof toggleViewerMode !== 'undefined'}`);
+            
+            if (viewerManager) {
+                log(`Current mode: ${viewerManager.currentMode}`);
+            }
+            
+            // Test button click
+            const btn = document.getElementById('toggleViewerBtn');
+            if (btn) {
+                log('Toggle button found');
+                btn.addEventListener('click', (e) => {
+                    log('Button clicked via addEventListener');
+                });
+            }
+            
+            // Check localStorage
+            log(`localStorage viewerMode: ${localStorage.getItem('viewerMode')}`);
+            
+            // Check CSS
+            const toggle = document.querySelector('.viewer-mode-toggle');
+            const computedStyle = window.getComputedStyle(toggle);
+            log(`Toggle display: ${computedStyle.display}`);
+            log(`Toggle visibility: ${computedStyle.visibility}`);
+        }, 1000);
+    </script>
+</body>
+</html>

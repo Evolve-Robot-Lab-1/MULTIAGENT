@@ -1,0 +1,44 @@
+# DocAI Native Dependencies
+
+# Core GUI Framework
+pywebview>=4.0.2
+
+# Web Framework
+flask>=2.3.0
+flask-cors>=4.0.0
+
+# Validation & Serialization
+pydantic>=2.0.0
+
+# LibreOffice Integration
+# Note: python-uno is typically installed with LibreOffice
+# On Ubuntu: sudo apt-get install python3-uno
+# On other systems, it comes with LibreOffice installation
+
+# File Processing
+pathlib2>=2.3.7; python_version < '3.4'
+
+# Utilities
+packaging>=21.0
+watchdog>=3.0.0
+werkzeug>=2.3.0
+
+# Logging
+colorlog>=6.0.0
+
+# Build Tools (for distribution)
+pyinstaller>=5.13.0
+cx-freeze>=6.15.0
+
+# Optional: Enhanced notifications
+# plyer>=2.1.0
+
+# Optional: System integration
+# psutil>=5.9.0
+
+# Optional: Linux window positioning
+# python-xlib>=0.33  # For X11 window manipulation on Linux
+
+# Development Dependencies
+pytest>=7.0.0
+pytest-flask>=1.3.0

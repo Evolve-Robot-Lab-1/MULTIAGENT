@@ -1,0 +1,116 @@
+{
+  "module": "test_03_gtk_socket_vcl",
+  "start_time": "2025-07-24T12:11:58.245265",
+  "status": "failed",
+  "attempts": [
+    {
+      "vcl_plugin": "gtk3",
+      "attempt": 1,
+      "result": {
+        "success": false,
+        "error": "Failed to launch or embed LibreOffice"
+      },
+      "timestamp": "2025-07-24T12:12:11.571197"
+    },
+    {
+      "vcl_plugin": "gtk3",
+      "attempt": 2,
+      "result": {
+        "success": false,
+        "error": "Failed to launch or embed LibreOffice"
+      },
+      "timestamp": "2025-07-24T12:12:24.676533"
+    },
+    {
+      "vcl_plugin": "gtk3",
+      "attempt": 3,
+      "result": {
+        "success": false,
+        "error": "Failed to launch or embed LibreOffice"
+      },
+      "timestamp": "2025-07-24T12:12:37.767536"
+    },
+    {
+      "vcl_plugin": "gtk4",
+      "attempt": 1,
+      "result": {
+        "success": false,
+        "error": "Failed to launch or embed LibreOffice"
+      },
+      "timestamp": "2025-07-24T12:12:50.849736"
+    },
+    {
+      "vcl_plugin": "gtk4",
+      "attempt": 2,
+      "result": {
+        "success": false,
+        "error": "Failed to launch or embed LibreOffice"
+      },
+      "timestamp": "2025-07-24T12:13:03.923683"
+    },
+    {
+      "vcl_plugin": "gtk4",
+      "attempt": 3,
+      "result": {
+        "success": false,
+        "error": "Failed to launch or embed LibreOffice"
+      },
+      "timestamp": "2025-07-24T12:13:17.013960"
+    },
+    {
+      "vcl_plugin": "gen",
+      "attempt": 1,
+      "result": {
+        "success": false,
+        "error": "Failed to launch or embed LibreOffice"
+      },
+      "timestamp": "2025-07-24T12:13:30.095199"
+    },
+    {
+      "vcl_plugin": "gen",
+      "attempt": 2,
+      "result": {
+        "success": false,
+        "error": "Failed to launch or embed LibreOffice"
+      },
+      "timestamp": "2025-07-24T12:13:43.172442"
+    },
+    {
+      "vcl_plugin": "gen",
+      "attempt": 3,
+      "result": {
+        "success": false,
+        "error": "Failed to launch or embed LibreOffice"
+      },
+      "timestamp": "2025-07-24T12:13:56.249578"
+    },
+    {
+      "vcl_plugin": "qt5",
+      "attempt": 1,
+      "result": {
+        "success": false,
+        "error": "Failed to launch or embed LibreOffice"
+      },
+      "timestamp": "2025-07-24T12:14:09.335115"
+    },
+    {
+      "vcl_plugin": "qt5",
+      "attempt": 2,
+      "result": {
+        "success": false,
+        "error": "Failed to launch or embed LibreOffice"
+      },
+      "timestamp": "2025-07-24T12:14:22.426206"
+    },
+    {
+      "vcl_plugin": "qt5",
+      "attempt": 3,
+      "result": {
+        "success": false,
+        "error": "Failed to launch or embed LibreOffice"
+      },
+      "timestamp": "2025-07-24T12:14:35.499305"
+    }
+  ],
+  "end_time": "2025-07-24T12:14:35.502438"
+}

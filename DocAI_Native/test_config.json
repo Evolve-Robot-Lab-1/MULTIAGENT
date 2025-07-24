@@ -1,0 +1,16 @@
+{
+  "test_document": "test_embed.odt",
+  "test_content": "LibreOffice Embedding Test Document",
+  "vcl_plugins": ["gtk3", "gtk4", "gen", "qt5"],
+  "wait_times": [2, 3, 5, 10],
+  "screenshot_enabled": true,
+  "continue_on_failure": true,
+  "log_level": "DEBUG",
+  "max_attempts_per_test": 3,
+  "window_detection_timeout": 15,
+  "cleanup_on_failure": true,
+  "container_size": {
+    "width": 1000,
+    "height": 600
+  }
+}

@@ -1,0 +1,64 @@
+# -*- mode: ruby -*-
+# DocAI Vagrant Configuration - Works on Windows!
+
+Vagrant.configure("2") do |config|
+  # Ubuntu 22.04 - same as your dual boot
+  config.vm.box = "ubuntu/jammy64"
+  
+  # Network configuration
+  config.vm.network "forwarded_port", guest: 8080, host: 8080
+  config.vm.network "private_network", ip: "192.168.56.100"
+  
+  # Sync folder - Windows path will auto-convert
+  config.vm.synced_folder ".", "/vagrant"
+  
+  # VM Resources
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "4096"
+    vb.cpus = 2
+    vb.name = "DocAI-Ubuntu"
+  end
+  
+  # Provision - Install everything
+  config.vm.provision "shell", inline: <<-SHELL
+    echo "Installing LibreOffice and dependencies..."
+    apt-get update
+    apt-get install -y \
+      libreoffice \
+      libreoffice-writer \
+      python3-uno \
+      python3-pip \
+      python3-venv \
+      python3-dev \
+      git
+    
+    # Python environment
+    cd /vagrant
+    python3 -m venv docai_env
+    source docai_env/bin/activate
+    pip install --upgrade pip
+    pip install -r requirements.txt
+    
+    # Download NLTK data
+    python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords'); nltk.download('wordnet')"
+    
+    # Create directories
+    mkdir -p uploads/documents uploads/embeddings models
+    
+    # Create convenience scripts
+    echo '#!/bin/bash
+cd /vagrant
+source docai_env/bin/activate
+export PYTHONPATH=/usr/lib/python3/dist-packages:$PYTHONPATH
+python main_copy.py' > /home/vagrant/run.sh
+    chmod +x /home/vagrant/run.sh
+    
+    echo "Setup complete! Use: ./run.sh to start"
+  SHELL
+  
+  # Auto-start on vagrant up (optional)
+  config.vm.provision "shell", run: "always", inline: <<-SHELL
+    echo "DocAI VM Started. SSH in with: vagrant ssh"
+    echo "Access at: http://localhost:8080"
+  SHELL
+end

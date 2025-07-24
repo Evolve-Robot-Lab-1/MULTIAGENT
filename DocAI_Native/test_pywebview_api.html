@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PyWebView API Deep Debug</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        button { 
+            padding: 10px; 
+            margin: 5px; 
+            background: #007acc; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+        }
+        button:hover { background: #005a9e; }
+        .log { 
+            background: #252526; 
+            padding: 10px; 
+            margin: 10px 0; 
+            border: 1px solid #3e3e42; 
+            max-height: 600px; 
+            overflow-y: auto; 
+        }
+        .error { color: #f48771; }
+        .success { color: #89d185; }
+        .info { color: #9cdcfe; }
+        .warning { color: #dcdcaa; }
+        .section { margin: 20px 0; padding: 10px; border: 1px solid #3e3e42; }
+    </style>
+</head>
+<body>
+    <h1>PyWebView API Deep Debug</h1>
+    
+    <div class="section">
+        <h2>Detection Tests</h2>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="testBasicStructure()">Test Basic Structure</button>
+        <button onclick="testAPIDetection()">Test API Detection</button>
+        <button onclick="testMethodCalls()">Test Method Calls</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+    
+    <div class="log" id="log"></div>
+    
+    <script>
+        const log = (msg, type = 'info') => {
+            const logEl = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = type;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+        };
+        
+        const clearLog = () => {
+            document.getElementById('log').innerHTML = '';
+        };
+        
+        // Test 1: Basic Structure
+        async function testBasicStructure() {
+            log('=== Testing Basic Structure ===', 'info');
+            
+            // Check window object
+            log(`window exists: ${typeof window !== 'undefined'}`, 
+                typeof window !== 'undefined' ? 'success' : 'error');
+            
+            // Check pywebview (as property)
+            log(`window.pywebview exists: ${typeof window.pywebview !== 'undefined'}`, 
+                typeof window.pywebview !== 'undefined' ? 'success' : 'error');
+            
+            // Check pywebview (as global)
+            log(`global pywebview exists: ${typeof pywebview !== 'undefined'}`, 
+                typeof pywebview !== 'undefined' ? 'success' : 'error');
+            
+            // Get the actual pywebview reference
+            const pw = window.pywebview || (typeof pywebview !== 'undefined' ? pywebview : null);
+            
+            if (pw) {
+                log('PyWebView object found', 'success');
+                
+                // Check api property
+                log(`pywebview.api exists: ${typeof pw.api !== 'undefined'}`, 
+                    typeof pw.api !== 'undefined' ? 'success' : 'error');
+                
+                // Check api type
+                if (pw.api) {
+                    log(`pywebview.api type: ${typeof pw.api}`, 'info');
+                    log(`pywebview.api constructor: ${pw.api.constructor.name}`, 'info');
+                    
+                    // Try to stringify
+                    try {
+                        log(`pywebview.api toString: ${pw.api.toString()}`, 'info');
+                    } catch (e) {
+                        log(`Cannot stringify api: ${e.message}`, 'warning');
+                    }
+                }
+            } else {
+                log('PyWebView not found!', 'error');
+            }
+        }
+        
+        // Test 2: API Detection Methods
+        async function testAPIDetection() {
+            log('=== Testing API Detection Methods ===', 'info');
+            
+            const pw = window.pywebview || (typeof pywebview !== 'undefined' ? pywebview : null);
+            
+            if (!pw || !pw.api) {
+                log('No API to test', 'error');
+                return;
+            }
+            
+            const api = pw.api;
+            
+            // Method 1: Object.keys()
+            try {
+                const keys = Object.keys(api);
+                log(`Object.keys(): [${keys.join(', ')}]`, 'success');
+            } catch (e) {
+                log(`Object.keys() failed: ${e.message}`, 'error');
+            }
+            
+            // Method 2: Object.getOwnPropertyNames()
+            try {
+                const props = Object.getOwnPropertyNames(api);
+                log(`Object.getOwnPropertyNames(): [${props.join(', ')}]`, 'success');
+            } catch (e) {
+                log(`Object.getOwnPropertyNames() failed: ${e.message}`, 'error');
+            }
+            
+            // Method 3: for...in loop
+            try {
+                const foundProps = [];
+                for (let prop in api) {
+                    foundProps.push(prop);
+                }
+                log(`for...in loop: [${foundProps.join(', ')}]`, 'success');
+            } catch (e) {
+                log(`for...in loop failed: ${e.message}`, 'error');
+            }
+            
+            // Method 4: Direct property checks
+            const methodsToCheck = [
+                'pickFile', 'pick_file', 
+                'checkLibreOffice', 'check_libreoffice',
+                'embedDocument', 'embed_document',
+                'getAvailableMethods', 'get_available_methods',
+                'ping'
+            ];
+            
+            log('Checking specific methods:', 'info');
+            for (const method of methodsToCheck) {
+                const exists = method in api;
+                const type = typeof api[method];
+                if (exists) {
+                    log(`  ${method}: ${type}`, type === 'function' ? 'success' : 'warning');
+                }
+            }
+        }
+        
+        // Test 3: Method Calls
+        async function testMethodCalls() {
+            log('=== Testing Method Calls ===', 'info');
+            
+            const pw = window.pywebview || (typeof pywebview !== 'undefined' ? pywebview : null);
+            
+            if (!pw || !pw.api) {
+                log('No API to test', 'error');
+                return;
+            }
+            
+            const api = pw.api;
+            
+            // Test ping
+            try {
+                log('Attempting to call ping()...', 'info');
+                const result = await api.ping();
+                log(`ping() result: ${result}`, 'success');
+            } catch (e) {
+                log(`ping() error: ${e.message}`, 'error');
+            }
+            
+            // Test getAvailableMethods
+            try {
+                log('Attempting to call getAvailableMethods()...', 'info');
+                const methods = await api.getAvailableMethods();
+                log(`Available methods: ${JSON.stringify(methods)}`, 'success');
+            } catch (e) {
+                log(`getAvailableMethods() error: ${e.message}`, 'error');
+            }
+            
+            // Test checkLibreOffice
+            try {
+                log('Attempting to call checkLibreOffice()...', 'info');
+                const result = await api.checkLibreOffice();
+                log(`checkLibreOffice() result: ${JSON.stringify(result)}`, 'success');
+            } catch (e) {
+                log(`checkLibreOffice() error: ${e.message}`, 'error');
+            }
+        }
+        
+        // Run all tests
+        async function runAllTests() {
+            clearLog();
+            await testBasicStructure();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await testAPIDetection();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await testMethodCalls();
+        }
+        
+        // Auto-run on load with multiple strategies
+        window.addEventListener('DOMContentLoaded', () => {
+            log('DOM loaded', 'info');
+            setTimeout(runAllTests, 1000);
+        });
+        
+        window.addEventListener('load', () => {
+            log('Window loaded', 'info');
+        });
+        
+        window.addEventListener('pywebviewready', () => {
+            log('pywebviewready event fired!', 'success');
+            setTimeout(runAllTests, 100);
+        });
+        
+        // Check periodically
+        let checkCount = 0;
+        const checkInterval = setInterval(() => {
+            checkCount++;
+            const pw = window.pywebview || (typeof pywebview !== 'undefined' ? pywebview : null);
+            if (pw && pw.api) {
+                log(`API detected after ${checkCount} checks`, 'success');
+                clearInterval(checkInterval);
+            } else if (checkCount > 50) {
+                log(`API not detected after ${checkCount} checks`, 'error');
+                clearInterval(checkInterval);
+            }
+        }, 100);
+    </script>
+</body>
+</html>

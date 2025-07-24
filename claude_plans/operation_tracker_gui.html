@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocAI Native - Operation Tracker & Completion Status</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/themes/default/style.min.css" />
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            height: 600px;
+            overflow-y: auto;
+        }
+        .panel h2 {
+            margin-top: 0;
+            color: #444;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        .stats-panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .complete { color: #28a745; }
+        .in-progress { color: #ffc107; }
+        .pending { color: #dc3545; }
+        .info { color: #17a2b8; }
+        
+        /* Custom tree styles */
+        .jstree-default .jstree-icon.custom-icon {
+            background-size: 16px 16px;
+            background-position: center center;
+            background-repeat: no-repeat;
+        }
+        .icon-complete { background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzI4YTc0NSIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bS0yIDE1bC01LTUgMS40MS0xLjQxTDEwIDE0LjE3bDcuNTktNy41OUwxOSA4bC05IDl6Ii8+PC9zdmc+'); }
+        .icon-pending { background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI2RjMzU0NSIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTEgMTVoLTJ2LTJoMnYyem0wLTRoLTJWN2gydjZ6Ii8+PC9zdmc+'); }
+        .icon-progress { background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI2ZmYzEwNyIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDEgMC04LTMuNTktOC04czMuNTktOCA4LTggOCAzLjU5IDggOC0zLjU5IDgtOCA4em0uNS03SDExdjZoNnYtMS41aC00LjV6Ii8+PC9zdmc+'); }
+        .icon-removed { background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzk5OSIgZD0iTTE5IDZoLTIuNUwxNS41IDVoLTd2MUg1djJoMTR6bS03IDVjMC0uNTUtLjQ1LTEtMS0xcy0xIC40NS0xIDF2NmMwIC41NS40NSAxIDEgMXMxLS40NSAxLTF6bTE0LTNIOS04SDZsMS4xIDEyLjFjLjEgMS4xIDEgMS45IDIgMS45aDkuOGMxIDAgMS45LS44IDItMS45eiIvPjwvc3ZnPg=='); }
+        .icon-keep { background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzE3YTJiOCIgZD0iTTE5IDNoLTQuMThDMTQuNC4xIDEzLjI4IDAgMTIgMGMtMS4yOCAwLTIuNC4xLTMuMThDNS44IDMgNSAzLjIgNSA0djE2YzAgLjggLjYgMS40IDEuNCAxLjRIMTcuNmMuOCAwIDEuNC0uNiAxLjQtMS40VjRjMC0uOC0uNi0xLjQtMS40LTEuNHptLTcgMGMuNTUgMCAxIC40NSAxIDFzLS40NSAxLTEgMS0xLS40NS0xLTEgLjQ1LTEgMS0xem0wIDE4bC01LTUtNS0xLjQxTDcgMTQuMTdsNy41OS03LjU5TDE2IDhsLTQgNHoiLz48L3N2Zz4='); }
+        .icon-modify { background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzZjNzU3ZCIgZD0iTTMgMTcuMjVWMjFoMy43NUwxNy44MSA5Ljk0bC0zLjc1LTMuNzVMMyAxNy4yNXpNMjAuNzEgNy4wNGMuMzktLjM5LjM5LTEuMDIgMC0xLjQxbC0yLjM0LTIuMzRjLS4zOS0uMzktMS4wMi0uMzktMS40MSAwbC0xLjgzIDEuODMgMy43NSAzLjc1IDEuODMtMS44M3oiLz48L3N2Zz4='); }
+        
+        .details-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        .details-section h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .details-content {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85em;
+            line-height: 1.5;
+            color: #333;
+        }
+        .filter-buttons {
+            margin-bottom: 15px;
+        }
+        .filter-btn {
+            padding: 6px 12px;
+            margin-right: 5px;
+            border: 1px solid #ddd;
+            background: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .filter-btn:hover {
+            background: #f0f0f0;
+        }
+        .filter-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 DocAI Native - Operation Tracker & Completion Status</h1>
+        
+        <div class="stats-panel">
+            <h2>📊 Overall Progress</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Operations</div>
+                    <div class="stat-value info" id="total-ops">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Completed</div>
+                    <div class="stat-value complete" id="complete-ops">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">In Progress</div>
+                    <div class="stat-value in-progress" id="progress-ops">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Pending</div>
+                    <div class="stat-value pending" id="pending-ops">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Completion Rate</div>
+                    <div class="stat-value info" id="completion-rate">0%</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-grid">
+            <div class="panel">
+                <h2>📁 File Operations Tree</h2>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" onclick="filterTree('all')">All</button>
+                    <button class="filter-btn" onclick="filterTree('keep')">To Keep</button>
+                    <button class="filter-btn" onclick="filterTree('remove')">To Remove</button>
+                    <button class="filter-btn" onclick="filterTree('modify')">To Modify</button>
+                </div>
+                <div id="file-operations-tree"></div>
+            </div>
+            
+            <div class="panel">
+                <h2>✅ Implementation Progress</h2>
+                <div id="implementation-tree"></div>
+                <div class="details-section" id="details-section" style="display: none;">
+                    <h3>Details</h3>
+                    <div class="details-content" id="details-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
+    <script>
+        // File Operations Data
+        const fileOperations = [
+            {
+                id: 'frontend',
+                text: 'Frontend File Operations',
+                state: { opened: true },
+                children: [
+                    {
+                        id: 'index-html',
+                        text: 'index.html',
+                        state: { opened: true },
+                        children: [
+                            {
+                                id: 'web-picker',
+                                text: 'handleWebOpenFile (Lines 156-275)',
+                                icon: 'icon-removed custom-icon',
+                                data: {
+                                    status: 'broken',
+                                    action: 'remove',
+                                    issue: 'FileReader.onload never fires in PyWebView',
+                                    recommendation: '🗑️ REMOVE - Replace with native file picker'
+                                }
+                            },
+                            {
+                                id: 'router-func',
+                                text: 'handleOpenFile Router (Line 273)',
+                                icon: 'icon-modify custom-icon',
+                                data: {
+                                    status: 'needs-fix',
+                                    action: 'modify',
+                                    issue: 'Calls broken web function',
+                                    recommendation: '✏️ MODIFY - Route to native picker instead'
+                                }
+                            },
+                            {
+                                id: 'unused-impl',
+                                text: 'handleOpenFile_real (Line 518)',
+                                icon: 'icon-removed custom-icon',
+                                data: {
+                                    status: 'dead-code',
+                                    action: 'remove',
+                                    issue: 'Unused/unreferenced',
+                                    recommendation: '🗑️ REMOVE - Clean up dead code'
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        id: 'native-integration',
+                        text: 'native-integration.js',
+                        state: { opened: true },
+                        children: [
+                            {
+                                id: 'native-open',
+                                text: 'handleNativeOpenFile (Lines 147-184)',
+                                icon: 'icon-keep custom-icon',
+                                data: {
+                                    status: 'working',
+                                    action: 'keep',
+                                    issue: 'None - Properly implemented',
+                                    recommendation: '✅ KEEP - This is the correct implementation'
+                                }
+                            },
+                            {
+                                id: 'native-multiple',
+                                text: 'handleNativeOpenMultiple (Lines 186-206)',
+                                icon: 'icon-modify custom-icon',
+                                data: {
+                                    status: 'partial',
+                                    action: 'enhance',
+                                    issue: 'Only opens first file',
+                                    recommendation: '🔄 ENHANCE - Complete multi-file support'
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        id: 'app-js',
+                        text: 'app.js',
+                        children: [
+                            {
+                                id: 'display-backend',
+                                text: 'displayDocumentFromBackend',
+                                icon: 'icon-keep custom-icon',
+                                data: {
+                                    status: 'working',
+                                    action: 'keep',
+                                    issue: 'None - Working for HTML display',
+                                    recommendation: '✅ KEEP - Needed for HTML view mode'
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                id: 'backend',
+                text: 'Backend File Operations',
+                state: { opened: true },
+                children: [
+                    {
+                        id: 'native-api',
+                        text: 'Native API Implementations',
+                        state: { opened: true },
+                        children: [
+                            {
+                                id: 'api-simple',
+                                text: 'native_api_simple.py',
+                                icon: 'icon-keep custom-icon',
+                                data: {
+                                    status: 'correct',
+                                    action: 'keep',
+                                    issue: 'None - Correct implementation',
+                                    recommendation: '✅ KEEP - This is the correct API'
+                                }
+                            },
+                            {
+                                id: 'api-dict',
+                                text: 'native_api_dict.py',
+                                icon: 'icon-removed custom-icon',
+                                data: {
+                                    status: 'broken',
+                                    action: 'remove',
+                                    issue: "PyWebView requires class instance, not dict",
+                                    recommendation: '🗑️ REMOVE - Use SimpleNativeAPI instead'
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        id: 'main-py',
+                        text: 'main.py',
+                        children: [
+                            {
+                                id: 'api-registration',
+                                text: 'API Registration (Line 216)',
+                                icon: 'icon-modify custom-icon',
+                                data: {
+                                    status: 'critical-bug',
+                                    action: 'fix',
+                                    issue: 'Using dict instead of class',
+                                    recommendation: '✏️ FIX IMMEDIATELY - Use SimpleNativeAPI instance'
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ];
+
+        // Implementation Progress Data
+        const implementationProgress = [
+            {
+                id: 'phase1',
+                text: 'Phase 1: Fix PyWebView API Registration',
+                icon: 'icon-progress custom-icon',
+                state: { opened: true },
+                data: {
+                    status: 'in-progress',
+                    description: 'Critical foundation fix for API exposure',
+                    tasks: [
+                        '1. Fix import statement',
+                        '2. Create SimpleNativeAPI instance',
+                        '3. Set window reference',
+                        '4. Enable debug mode',
+                        '5. Verify API injection'
+                    ]
+                },
+                children: [
+                    {
+                        id: 'fix-import',
+                        text: 'Fix Import Statement',
+                        icon: 'icon-pending custom-icon',
+                        data: { status: 'pending', detail: 'Change from api_dict to SimpleNativeAPI' }
+                    },
+                    {
+                        id: 'create-instance',
+                        text: 'Create API Instance',
+                        icon: 'icon-pending custom-icon',
+                        data: { status: 'pending', detail: 'self.native_api = SimpleNativeAPI()' }
+                    },
+                    {
+                        id: 'set-window',
+                        text: 'Set Window Reference',
+                        icon: 'icon-pending custom-icon',
+                        data: { status: 'pending', detail: 'self.native_api.set_window(self.window)' }
+                    },
+                    {
+                        id: 'debug-mode',
+                        text: 'Enable Debug Mode',
+                        icon: 'icon-pending custom-icon',
+                        data: { status: 'pending', detail: 'Add debug=True to create_window' }
+                    },
+                    {
+                        id: 'verify-api',
+                        text: 'Verify API Injection',
+                        icon: 'icon-pending custom-icon',
+                        data: { status: 'pending', detail: 'Test pywebview.api availability' }
+                    }
+                ]
+            },
+            {
+                id: 'phase2',
+                text: 'Phase 2: Clean Up Frontend File Operations',
+                icon: 'icon-pending custom-icon',
+                data: {
+                    status: 'pending',
+                    description: 'Remove broken implementations and unify handlers'
+                },
+                children: [
+                    {
+                        id: 'remove-broken',
+                        text: 'Remove Broken Implementations',
+                        icon: 'icon-pending custom-icon',
+                        data: { status: 'pending' }
+                    },
+                    {
+                        id: 'unify-handlers',
+                        text: 'Create Unified File Handler',
+                        icon: 'icon-pending custom-icon',
+                        data: { status: 'pending' }
+                    }
+                ]
+            },
+            {
+                id: 'phase3',
+                text: 'Phase 3: Connect Frontend to Backend',
+                icon: 'icon-pending custom-icon',
+                data: {
+                    status: 'pending',
+                    description: 'Implement proper document processing'
+                },
+                children: [
+                    {
+                        id: 'fix-endpoint',
+                        text: 'Fix /view_document_direct',
+                        icon: 'icon-pending custom-icon',
+                        data: { status: 'pending' }
+                    },
+                    {
+                        id: 'file-container',
+                        text: 'Fix File Container Display',
+                        icon: 'icon-pending custom-icon',
+                        data: { status: 'pending' }
+                    }
+                ]
+            },
+            {
+                id: 'phase4',
+                text: 'Phase 4: Test & Verify',
+                icon: 'icon-pending custom-icon',
+                data: {
+                    status: 'pending',
+                    description: 'End-to-end testing and verification'
+                }
+            },
+            {
+                id: 'phase5',
+                text: 'Phase 5: Polish & Error Handling',
+                icon: 'icon-pending custom-icon',
+                data: {
+                    status: 'pending',
+                    description: 'User experience improvements'
+                }
+            }
+        ];
+
+        // Initialize Trees
+        $(document).ready(function() {
+            // File Operations Tree
+            $('#file-operations-tree').jstree({
+                'core': {
+                    'data': fileOperations,
+                    'themes': {
+                        'icons': true
+                    }
+                },
+                'plugins': ['search', 'state']
+            });
+
+            // Implementation Tree
+            $('#implementation-tree').jstree({
+                'core': {
+                    'data': implementationProgress,
+                    'themes': {
+                        'icons': true
+                    }
+                },
+                'plugins': ['state']
+            });
+
+            // Event handlers
+            $('#file-operations-tree').on('select_node.jstree', function(e, data) {
+                if (data.node.data) {
+                    showDetails('File Operation Details', data.node.data);
+                }
+            });
+
+            $('#implementation-tree').on('select_node.jstree', function(e, data) {
+                if (data.node.data) {
+                    showDetails('Implementation Details', data.node.data);
+                }
+            });
+
+            // Calculate stats
+            updateStats();
+        });
+
+        function showDetails(title, data) {
+            let content = `<strong>${title}</strong><br><br>`;
+            
+            if (data.status) content += `<strong>Status:</strong> ${data.status}<br>`;
+            if (data.action) content += `<strong>Action:</strong> ${data.action}<br>`;
+            if (data.issue) content += `<strong>Issue:</strong> ${data.issue}<br>`;
+            if (data.recommendation) content += `<strong>Recommendation:</strong> ${data.recommendation}<br>`;
+            if (data.description) content += `<strong>Description:</strong> ${data.description}<br>`;
+            if (data.detail) content += `<strong>Detail:</strong> ${data.detail}<br>`;
+            
+            if (data.tasks) {
+                content += `<br><strong>Tasks:</strong><br>`;
+                data.tasks.forEach(task => {
+                    content += `• ${task}<br>`;
+                });
+            }
+            
+            $('#details-content').html(content);
+            $('#details-section').show();
+        }
+
+        function filterTree(filter) {
+            $('.filter-btn').removeClass('active');
+            event.target.classList.add('active');
+            
+            const tree = $('#file-operations-tree').jstree(true);
+            
+            if (filter === 'all') {
+                tree.show_all();
+            } else {
+                tree.hide_all();
+                
+                const nodes = tree.get_json('#', {flat: true});
+                nodes.forEach(node => {
+                    if (node.data && node.data.action) {
+                        if ((filter === 'keep' && node.data.action === 'keep') ||
+                            (filter === 'remove' && node.data.action === 'remove') ||
+                            (filter === 'modify' && (node.data.action === 'modify' || node.data.action === 'fix' || node.data.action === 'enhance'))) {
+                            tree.show_node(node);
+                            // Show parents
+                            let parent = tree.get_parent(node);
+                            while (parent && parent !== '#') {
+                                tree.show_node(parent);
+                                parent = tree.get_parent(parent);
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function updateStats() {
+            let total = 0, complete = 0, progress = 0, pending = 0;
+            
+            // Count implementation tasks
+            const tree = $('#implementation-tree').jstree(true);
+            const nodes = tree.get_json('#', {flat: true});
+            
+            nodes.forEach(node => {
+                if (node.data && node.data.status) {
+                    total++;
+                    switch(node.data.status) {
+                        case 'complete':
+                            complete++;
+                            break;
+                        case 'in-progress':
+                            progress++;
+                            break;
+                        case 'pending':
+                            pending++;
+                            break;
+                    }
+                }
+            });
+            
+            $('#total-ops').text(total);
+            $('#complete-ops').text(complete);
+            $('#progress-ops').text(progress);
+            $('#pending-ops').text(pending);
+            
+            const rate = total > 0 ? Math.round((complete / total) * 100) : 0;
+            $('#completion-rate').text(rate + '%');
+        }
+    </script>
+</body>
+</html>

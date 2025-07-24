@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  agent-b:
+    build:
+      context: ../
+      dockerfile: AGENT_B_LINUX_NEW/Dockerfile
+    image: agent-b-linux:latest
+    container_name: agent-b-linux
+    
+    ports:
+      - "7788:7788"  # Web UI
+      - "5900:5900"  # VNC (optional, for debugging)
+    
+    environment:
+      # Display settings
+      - DISPLAY=:99
+      - RESOLUTION=1920x1080x24
+      
+      # Enable VNC for debugging (set to true if needed)
+      - ENABLE_VNC=false
+      
+      # API Keys (override with your actual keys)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-your_key_here}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-your_key_here}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-AIzaSyBQ0YV0bAUdGx19LTncuo_uWMAjp1oAfYg}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-AIzaSyCsdm6uvSZB0ibxnnaWB1aD4vUvVsS74Sc}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY:-your_key_here}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-your_key_here}
+      
+      # Browser settings
+      - CHROME_PATH=/usr/bin/google-chrome-stable
+      - CHROME_ARGS=--no-sandbox --disable-gpu --disable-dev-shm-usage
+      
+      # Telemetry settings
+      - ANONYMIZED_TELEMETRY=false
+      - BROWSER_USE_TELEMETRY=false
+      - GRADIO_ANALYTICS_ENABLED=False
+      
+    volumes:
+      # Persist agent history and data
+      - agent_data:/app/tmp
+      - agent_logs:/app/logs
+      
+      # Optional: Mount local .env file
+      # - ./.env:/app/.env:ro
+      
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7788/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Security options
+    security_opt:
+      - seccomp:unconfined
+    
+    # Shared memory size (for Chrome)
+    shm_size: '2gb'
+
+volumes:
+  agent_data:
+    name: agent_b_data
+  agent_logs:
+    name: agent_b_logs

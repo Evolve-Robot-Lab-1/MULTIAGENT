@@ -1,0 +1,126 @@
+version: '3.8'
+
+services:
+  docai:
+    build: .
+    container_name: docai-app
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URI=postgresql://docai:docai123@postgres:5432/docai
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env.production
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./models:/app/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - docai-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: docai-postgres
+    environment:
+      - POSTGRES_USER=docai
+      - POSTGRES_PASSWORD=docai123
+      - POSTGRES_DB=docai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - docai-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: docai-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - docai-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: docai-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/sites-enabled:/etc/nginx/sites-enabled:ro
+      - ./static2.0:/var/www/static:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - docai
+    restart: unless-stopped
+    networks:
+      - docai-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: docai-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    networks:
+      - docai-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: docai-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - docai-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  docai-network:
+    driver: bridge

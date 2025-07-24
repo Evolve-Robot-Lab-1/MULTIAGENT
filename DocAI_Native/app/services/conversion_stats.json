@@ -1,0 +1,38 @@
+{
+  "ADITHYA_OFFER_LETTER.docx": {
+    "success": 10,
+    "failure": 0,
+    "errors": [],
+    "last_attempt": "2025-07-22 00:20:01"
+  },
+  "OFFERLETTER.docx": {
+    "success": 2,
+    "failure": 0,
+    "errors": [],
+    "last_attempt": "2025-07-23 17:07:35"
+  },
+  "ERL-Offer%20Letter.docx": {
+    "success": 1,
+    "failure": 0,
+    "errors": [],
+    "last_attempt": "2025-07-23 17:07:07"
+  },
+  "ERL-Offer_Letter.docx": {
+    "success": 4,
+    "failure": 0,
+    "errors": [],
+    "last_attempt": "2025-07-24 11:08:57"
+  },
+  "CALL LETTER.docx": {
+    "success": 4,
+    "failure": 0,
+    "errors": [],
+    "last_attempt": "2025-07-24 11:08:22"
+  },
+  "compo.docx": {
+    "success": 3,
+    "failure": 0,
+    "errors": [],
+    "last_attempt": "2025-07-24 16:28:16"
+  }
+}

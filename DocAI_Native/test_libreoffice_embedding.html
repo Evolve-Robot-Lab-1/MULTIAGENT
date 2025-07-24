@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LibreOffice Embedding Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        #log {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .log-entry {
+            margin: 2px 0;
+        }
+        .selected-file {
+            margin: 10px 0;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>LibreOffice Document Embedding Test</h1>
+    
+    <div class="test-section">
+        <h2>Step 1: Check LibreOffice Availability</h2>
+        <button onclick="checkLibreOffice()">Check LibreOffice</button>
+        <div id="libreoffice-status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Step 2: Select a Document</h2>
+        <button onclick="selectDocument()">Select Document</button>
+        <div id="selected-file" class="selected-file">
+            <strong>Selected:</strong> <span id="file-path"></span>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Step 3: Embed Document</h2>
+        <button onclick="embedDocument()" id="embed-btn" disabled>Embed in LibreOffice</button>
+        <div id="embed-status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Debug Log</h2>
+        <button onclick="clearLog()">Clear Log</button>
+        <div id="log"></div>
+    </div>
+    
+    <script>
+        let selectedFilePath = null;
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span style="color: ${type === 'error' ? 'red' : type === 'success' ? 'green' : 'blue'}">[${timestamp}]</span> ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+        
+        async function checkLibreOffice() {
+            log('Checking LibreOffice availability...');
+            
+            try {
+                if (typeof pywebview === 'undefined' || typeof pywebview.api === 'undefined') {
+                    throw new Error('PyWebView API not available');
+                }
+                
+                const result = await pywebview.api.checkLibreOffice();
+                log(`LibreOffice check result: ${JSON.stringify(result)}`, result.available ? 'success' : 'error');
+                
+                if (result.available) {
+                    showStatus('libreoffice-status', 
+                        `✓ LibreOffice is available<br>Platform: ${result.platform}<br>Embedder: ${result.embedder}`, 
+                        'success');
+                } else {
+                    showStatus('libreoffice-status', 
+                        `✗ LibreOffice not available<br>Error: ${result.error || 'Unknown'}`, 
+                        'error');
+                }
+                
+            } catch (error) {
+                log(`Error checking LibreOffice: ${error.message}`, 'error');
+                showStatus('libreoffice-status', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function selectDocument() {
+            log('Opening file picker...');
+            
+            try {
+                if (typeof pywebview === 'undefined' || typeof pywebview.api === 'undefined') {
+                    throw new Error('PyWebView API not available');
+                }
+                
+                const filePath = await pywebview.api.pickFile();
+                
+                if (filePath) {
+                    selectedFilePath = filePath;
+                    log(`File selected: ${filePath}`, 'success');
+                    
+                    document.getElementById('selected-file').style.display = 'block';
+                    document.getElementById('file-path').textContent = filePath;
+                    document.getElementById('embed-btn').disabled = false;
+                    
+                    showStatus('embed-status', 'Ready to embed document', 'info');
+                } else {
+                    log('No file selected', 'info');
+                }
+                
+            } catch (error) {
+                log(`Error selecting file: ${error.message}`, 'error');
+            }
+        }
+        
+        async function embedDocument() {
+            if (!selectedFilePath) {
+                log('No file selected', 'error');
+                return;
+            }
+            
+            log(`Embedding document: ${selectedFilePath}`);
+            showStatus('embed-status', 'Embedding document...', 'info');
+            
+            try {
+                if (typeof pywebview === 'undefined' || typeof pywebview.api === 'undefined') {
+                    throw new Error('PyWebView API not available');
+                }
+                
+                const result = await pywebview.api.embedDocument(selectedFilePath);
+                log(`Embed result: ${JSON.stringify(result)}`, result.success ? 'success' : 'error');
+                
+                if (result.success) {
+                    showStatus('embed-status', 
+                        `✓ Document embedded successfully<br>Mode: ${result.mode}<br>PID: ${result.pid || 'N/A'}<br>${result.message}`, 
+                        'success');
+                } else {
+                    showStatus('embed-status', 
+                        `✗ Failed to embed document<br>Error: ${result.error}`, 
+                        'error');
+                }
+                
+            } catch (error) {
+                log(`Error embedding document: ${error.message}`, 'error');
+                showStatus('embed-status', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            log('Log cleared');
+        }
+        
+        // Initial check on load
+        window.addEventListener('load', function() {
+            log('Page loaded, checking PyWebView API...');
+            
+            setTimeout(function() {
+                if (typeof pywebview !== 'undefined' && typeof pywebview.api !== 'undefined') {
+                    log('PyWebView API is available', 'success');
+                    log(`Available methods: ${pywebview.api.getAvailableMethods ? pywebview.api.getAvailableMethods() : 'Unknown'}`);
+                } else {
+                    log('PyWebView API not found', 'error');
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>

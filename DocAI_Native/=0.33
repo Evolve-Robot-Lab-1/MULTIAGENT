@@ -1,0 +1,6 @@
+Collecting python-xlib
+  Downloading python_xlib-0.33-py2.py3-none-any.whl (182 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 182.2/182.2 KB 2.1 MB/s eta 0:00:00
+Requirement already satisfied: six>=1.10.0 in /usr/lib/python3/dist-packages (from python-xlib) (1.16.0)
+Installing collected packages: python-xlib
+Successfully installed python-xlib-0.33

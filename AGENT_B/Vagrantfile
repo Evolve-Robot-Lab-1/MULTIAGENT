@@ -1,0 +1,140 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  # Base box
+  config.vm.box = "ubuntu/jammy64"
+  config.vm.hostname = "agent-b-linux"
+
+  # Network configuration
+  config.vm.network "forwarded_port", guest: 7788, host: 7788, host_ip: "127.0.0.1"
+  config.vm.network "forwarded_port", guest: 5900, host: 5900, host_ip: "127.0.0.1"  # VNC
+  config.vm.network "private_network", ip: "192.168.56.10"
+
+  # VirtualBox configuration
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "agent-b-linux"
+    vb.memory = "4096"
+    vb.cpus = 2
+    
+    # Enable GUI for debugging (optional)
+    vb.gui = false
+    
+    # Graphics controller settings for better performance
+    vb.customize ["modifyvm", :id, "--graphicscontroller", "vmsvga"]
+    vb.customize ["modifyvm", :id, "--vram", "128"]
+    vb.customize ["modifyvm", :id, "--accelerate3d", "off"]
+  end
+
+  # Sync folders
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.synced_folder "../AGENT_B_LINUX_NEW", "/home/vagrant/agent_b"
+  config.vm.synced_folder "../browser-use-main", "/home/vagrant/browser-use-main"
+  config.vm.synced_folder "../turboo_linux_new", "/home/vagrant/turboo_linux_new"
+
+  # Provisioning script
+  config.vm.provision "shell", inline: <<-SHELL
+    # Update system
+    apt-get update
+    apt-get upgrade -y
+
+    # Install dependencies
+    apt-get install -y \
+      python3.10 python3.10-venv python3-pip \
+      wget gnupg ca-certificates \
+      xvfb x11vnc fluxbox \
+      libglib2.0-0 libnss3 libgconf-2-4 libfontconfig1 \
+      libxss1 libappindicator3-1 libasound2 libatk-bridge2.0-0 \
+      libgtk-3-0 libx11-xcb1 libxcb-dri3-0 libdrm2 libgbm1 libxkbcommon0 \
+      curl git nano
+
+    # Install Google Chrome
+    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+    echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list
+    apt-get update
+    apt-get install -y google-chrome-stable
+
+    # Set up environment for vagrant user
+    cat >> /home/vagrant/.bashrc <<'EOF'
+
+# AGENT_B_LINUX_NEW environment
+export VIRTUAL_ENV=/home/vagrant/turboo_linux_new
+export PATH="$VIRTUAL_ENV/bin:$PATH"
+export PYTHONPATH="/home/vagrant/browser-use-main:/home/vagrant/agent_b"
+export DISPLAY=:99
+export ANONYMIZED_TELEMETRY=false
+export BROWSER_USE_TELEMETRY=false
+export GRADIO_ANALYTICS_ENABLED=False
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+export CHROME_PATH=/usr/bin/google-chrome-stable
+
+# Aliases
+alias start-agent="cd /home/vagrant/agent_b && ./launch_offline.sh"
+alias stop-agent="pkill -f webui.py"
+alias agent-logs="tail -f /home/vagrant/agent_b/logs/*"
+EOF
+
+    # Create systemd service
+    cat > /etc/systemd/system/agent-b.service <<'EOF'
+[Unit]
+Description=AGENT_B_LINUX_NEW Browser Agent
+After=network.target
+
+[Service]
+Type=simple
+User=vagrant
+WorkingDirectory=/home/vagrant/agent_b
+Environment="DISPLAY=:99"
+Environment="VIRTUAL_ENV=/home/vagrant/turboo_linux_new"
+Environment="PATH=/home/vagrant/turboo_linux_new/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PYTHONPATH=/home/vagrant/browser-use-main:/home/vagrant/agent_b"
+ExecStartPre=/usr/bin/Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset &
+ExecStart=/home/vagrant/turboo_linux_new/bin/python webui.py --ip 0.0.0.0 --port 7788
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # Enable but don't start the service
+    systemctl daemon-reload
+    systemctl enable agent-b.service
+
+    # Create startup script
+    cat > /home/vagrant/start_agent.sh <<'EOF'
+#!/bin/bash
+# Start Xvfb
+Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset &
+sleep 2
+
+# Start agent
+cd /home/vagrant/agent_b
+source /home/vagrant/turboo_linux_new/bin/activate
+export PYTHONPATH="/home/vagrant/browser-use-main:/home/vagrant/agent_b"
+export DISPLAY=:99
+python webui.py --ip 0.0.0.0 --port 7788
+EOF
+    chmod +x /home/vagrant/start_agent.sh
+    chown vagrant:vagrant /home/vagrant/start_agent.sh
+
+    # Fix permissions
+    chown -R vagrant:vagrant /home/vagrant/agent_b
+    chown -R vagrant:vagrant /home/vagrant/browser-use-main
+    chown -R vagrant:vagrant /home/vagrant/turboo_linux_new
+
+    echo "============================================"
+    echo "AGENT_B_LINUX_NEW Vagrant setup complete!"
+    echo ""
+    echo "To start the agent:"
+    echo "  vagrant ssh"
+    echo "  start-agent"
+    echo ""
+    echo "Or use systemd:"
+    echo "  vagrant ssh"
+    echo "  sudo systemctl start agent-b"
+    echo ""
+    echo "Access the web UI at: http://localhost:7788"
+    echo "============================================"
+  SHELL
+end

@@ -1,0 +1,116 @@
+{
+  "module": "test_04_xembed_protocol",
+  "start_time": "2025-07-24T12:14:36.528456",
+  "status": "failed",
+  "attempts": [
+    {
+      "vcl_plugin": "gtk3",
+      "attempt": 1,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:14:40.106670"
+    },
+    {
+      "vcl_plugin": "gtk3",
+      "attempt": 2,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:14:44.205655"
+    },
+    {
+      "vcl_plugin": "gtk3",
+      "attempt": 3,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:14:50.284905"
+    },
+    {
+      "vcl_plugin": "gtk4",
+      "attempt": 1,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:14:53.354708"
+    },
+    {
+      "vcl_plugin": "gtk4",
+      "attempt": 2,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:14:57.447233"
+    },
+    {
+      "vcl_plugin": "gtk4",
+      "attempt": 3,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:15:03.521621"
+    },
+    {
+      "vcl_plugin": "gen",
+      "attempt": 1,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:15:06.611631"
+    },
+    {
+      "vcl_plugin": "gen",
+      "attempt": 2,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:15:10.701186"
+    },
+    {
+      "vcl_plugin": "gen",
+      "attempt": 3,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:15:16.785980"
+    },
+    {
+      "vcl_plugin": "qt5",
+      "attempt": 1,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:15:19.881982"
+    },
+    {
+      "vcl_plugin": "qt5",
+      "attempt": 2,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:15:23.975085"
+    },
+    {
+      "vcl_plugin": "qt5",
+      "attempt": 3,
+      "result": {
+        "success": false,
+        "error": "Failed to find LibreOffice window"
+      },
+      "timestamp": "2025-07-24T12:15:30.049681"
+    }
+  ],
+  "end_time": "2025-07-24T12:15:30.051865"
+}

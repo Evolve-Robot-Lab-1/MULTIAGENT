@@ -1,0 +1,32 @@
+{
+  "Copy_of_CALL_LETTER_1.docx": {
+    "success": 21,
+    "failure": 0,
+    "errors": [],
+    "last_attempt": "2025-06-24 15:42:14"
+  },
+  "ADITHYA_OFFER_LETTER.docx": {
+    "success": 2,
+    "failure": 0,
+    "errors": [],
+    "last_attempt": "2025-06-19 16:14:37"
+  },
+  "evolve.docx": {
+    "success": 3,
+    "failure": 0,
+    "errors": [],
+    "last_attempt": "2025-06-19 18:02:36"
+  },
+  "ERL-Offer_Letter.docx": {
+    "success": 5,
+    "failure": 0,
+    "errors": [],
+    "last_attempt": "2025-06-23 15:34:56"
+  },
+  "Innovative_Academic_Leadership_in_Robotics_Award.docx": {
+    "success": 14,
+    "failure": 0,
+    "errors": [],
+    "last_attempt": "2025-07-17 17:12:48"
+  }
+}
